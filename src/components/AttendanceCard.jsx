@@ -11,7 +11,7 @@ import SuccessIllustration from "../assets/SuccessIllustration.svg";
 import PunchIn from "../assets/Punch-in.svg";
 import PunchOut from "../assets/Punch-out.svg";
 
-const AttendanceCard = ({ onPunchOut }) => {
+const AttendanceCard = ({ onPunchOut, hasCompletedKYC }) => {
   const [statusLoading, setStatusLoading] = useState(true);
   const [isHoliday, setIsHoliday] = useState(false);
   const [punchedIn, setPunchedIn] = useState(false);
@@ -47,7 +47,7 @@ const AttendanceCard = ({ onPunchOut }) => {
     try {
       setStatusLoading(true);
       const res = await getTodayStatusAPI();
-      setIsHoliday(res.isHoliday || false); 
+      setIsHoliday(res.isHoliday || false);
 
       setPunchedIn(res.punchedIn);
       setPunchedOut(res.punchedOut);
@@ -77,6 +77,11 @@ const AttendanceCard = ({ onPunchOut }) => {
   }, []);
 
   const handlePunch = async () => {
+    // if (!hasCompletedKYC()) {
+    //   return toast.error(
+    //     "Please complete your PAN, Aadhaar and Bank details from account before punching in."
+    //   );
+    // }
     try {
       if (!punchedIn) {
         const res = await punchInAPI();
@@ -142,24 +147,23 @@ const AttendanceCard = ({ onPunchOut }) => {
           <button
             onClick={handlePunch}
             disabled={punchedOut || statusLoading || isHoliday}
-            className={`flex-1 ml-2 py-2 rounded-lg font-semibold text-white transition
-    ${
-      isHoliday
-        ? "bg-gray-400 cursor-not-allowed"
-        : punchedOut
-        ? "bg-gray-400 cursor-not-allowed"
-        : punchedIn
-        ? "bg-red-500 hover:bg-red-600"
-        : "bg-green-600 hover:bg-green-700"
-    }`}
+            className={`flex-1 ml-2 py-2 rounded-lg font-semibold text-white transition cursor-pointer disabled:cursor-not-allowed
+    ${isHoliday
+                ? "bg-gray-400 cursor-not-allowed"
+                : punchedOut
+                  ? "bg-gray-400 cursor-not-allowed"
+                  : punchedIn
+                    ? "bg-red-500 hover:bg-red-600"
+                    : "bg-green-600 hover:bg-green-700"
+              }`}
           >
             {isHoliday
               ? "Holiday - No Punch Required"
               : punchedOut
-              ? "Already Punched Out"
-              : punchedIn
-              ? "Punch Out"
-              : "Punch In"}
+                ? "Already Punched Out"
+                : punchedIn
+                  ? "Punch Out"
+                  : "Punch In"}
           </button>
         </div>
       </div>

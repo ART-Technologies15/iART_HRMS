@@ -111,6 +111,19 @@ const Dashboard = () => {
     }
   };
 
+  const hasCompletedKYC = () => {
+    return (
+      user?.pan &&
+      user?.panFile &&
+      user?.aadhaar &&
+      user?.aadhaarFile &&
+      user?.bankDetails?.bankName &&
+      user?.bankDetails?.accountNumber &&
+      user?.bankDetails?.ifsc &&
+      user?.bankDetails?.passbookFile
+    );
+  };
+
   useEffect(() => {
     if (!userId) return;
     fetchData();
@@ -194,7 +207,7 @@ const Dashboard = () => {
         <div className="grid grid-cols-1 lg:grid-cols-14 gap-5 items-stretch">
           <div className="lg:col-span-14 flex justify-center">
             <div className="w-full max-w-4xl h-full">
-              <AttendanceCard onPunchOut={refreshDashboard} />
+              <AttendanceCard onPunchOut={refreshDashboard} hasCompletedKYC={hasCompletedKYC} />
             </div>
           </div>
         </div>

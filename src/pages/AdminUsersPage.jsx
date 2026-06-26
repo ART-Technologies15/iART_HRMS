@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Search, SlidersHorizontal, Plus, Menu } from "lucide-react";
+import { Search, SlidersHorizontal, Plus, Menu, Pencil, Trash2, Calendar } from "lucide-react";
 import CustomTable from "../components/CustomTable";
 import UserDetailsModal from "../components/UserDetailsModal";
 import AdminUserFilterModal from "../components/AdminUserFilterModal";
@@ -171,7 +171,7 @@ const AdminUsersPage = () => {
       render: (_, row) => (
         <div className="flex flex-wrap gap-1.5">
           <button
-            className="px-2 py-1 text-xs bg-blue-600 text-white rounded whitespace-nowrap"
+            className="px-2 py-1 text-xs bg-blue-600 text-white rounded whitespace-nowrap cursor-pointer"
             onClick={(e) => {
               e.stopPropagation();
               setAddUserOpen(row);
@@ -180,7 +180,7 @@ const AdminUsersPage = () => {
             Edit
           </button>
           <button
-            className="px-2 py-1 text-xs bg-green-600 text-white rounded whitespace-nowrap"
+            className="px-2 py-1 text-xs bg-green-600 text-white rounded whitespace-nowrap cursor-pointer"
             onClick={(e) => {
               e.stopPropagation();
               navigate("/user-attendance", { state: { user: row } });
@@ -189,7 +189,7 @@ const AdminUsersPage = () => {
             Attendance
           </button>
           <button
-            className="px-2 py-1 text-xs bg-red-600 text-white rounded whitespace-nowrap"
+            className="px-2 py-1 text-xs bg-red-600 text-white rounded whitespace-nowrap cursor-pointer"
             onClick={(e) => {
               e.stopPropagation();
               setDeleteUser(row);

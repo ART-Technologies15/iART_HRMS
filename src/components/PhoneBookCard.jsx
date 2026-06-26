@@ -1,5 +1,5 @@
 import React from "react";
-import { Phone, Mail, MapPin, Briefcase, UserCircle, Cake } from "lucide-react";
+import { Phone, Mail, MapPin, Briefcase, UserCircle, Cake, CalendarDays } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
 const getInitials = (name = "") =>
@@ -12,6 +12,16 @@ const getInitials = (name = "") =>
 const formatDOB = (dob) => {
   if (!dob) return "-";
   return new Date(dob).toLocaleDateString("en-US", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+};
+
+const formatDate = (date) => {
+  if (!date) return "-";
+
+  return new Date(date).toLocaleDateString("en-US", {
     day: "2-digit",
     month: "short",
     year: "numeric",
@@ -31,9 +41,9 @@ const PhoneBookCard = ({ user, onClick }) => {
         className="w-16 h-16 rounded-full flex items-center justify-center text-lg font-semibold
              bg-blue-100 text-blue-700 self-center sm:self-start overflow-hidden shrink-0"
       >
-        {user.avatar ? (
+        {user.profilePhoto ? (
           <img
-            src={user.avatar}
+            src={user.profilePhoto}
             alt={user.name}
             className="w-full h-full rounded-full object-cover"
           />
@@ -58,6 +68,11 @@ const PhoneBookCard = ({ user, onClick }) => {
 
         <div className="text-gray-600 flex items-center gap-1">
           <Briefcase size={14} /> {user.designation}
+        </div>
+
+        <div className="text-gray-600 flex items-center gap-1">
+          <CalendarDays size={14} />
+          Joined: {formatDate(user.joiningDate)}
         </div>
 
         <div className="text-gray-600 flex items-center gap-1">

@@ -1,5 +1,17 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { X, Eye, EyeOff } from "lucide-react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
+import {
+  X,
+  Eye,
+  EyeOff,
+  User,
+  Phone,
+  Briefcase,
+  Lock,
+  Wallet,
+  Landmark,
+  ExternalLink,
+  Camera,
+} from "lucide-react";
 import { toast } from "react-toastify";
 
 const defaultForm = {
@@ -13,19 +25,50 @@ const defaultForm = {
   department: "",
   designation: "",
   dateOfBirth: "",
+  joiningDate: "",
   pan: "",
   aadhaar: "",
+  profilePhoto: null,
+  panFile: null,
+  aadhaarFile: null,
   bankDetails: {
     accountNumber: "",
     ifsc: "",
     bankName: "",
+    passbookFile: null,
   },
   leaveInfo: {
     balance: "",
   },
 };
 
-const RequiredStar = () => <span className="text-red-500 ml-0.5">*</span>;
+// ── Shared styling tokens ──────────────────────────────────
+const inputCls =
+  "w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 transition focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 disabled:cursor-not-allowed disabled:opacity-60";
+
+const fileCls =
+  "w-full rounded-lg border border-slate-300 bg-slate-50 text-sm text-slate-500 transition file:mr-3 file:rounded-md file:border-0 file:bg-indigo-600 file:px-3 file:py-2 file:text-xs file:font-medium file:text-white hover:file:bg-indigo-700 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60";
+
+const FieldLabel = ({ children, required }) => (
+  <label className="mb-1.5 block text-xs font-medium text-slate-600">
+    {children}
+    {required && <span className="ml-0.5 text-rose-500">*</span>}
+  </label>
+);
+
+const SectionHeader = ({ icon: Icon, title, hint }) => (
+  <div className="mb-3 flex items-center gap-2.5">
+    <div className="flex h-7 w-7 items-center justify-center rounded-md bg-indigo-50 text-indigo-600">
+      <Icon size={15} />
+    </div>
+    <h3 className="text-sm font-semibold text-slate-700">{title}</h3>
+    {hint && (
+      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-400">
+        {hint}
+      </span>
+    )}
+  </div>
+);
 
 const UserFormModal = ({
   open,
@@ -46,6 +89,28 @@ const UserFormModal = ({
   const [showOldPwd, setShowOldPwd] = useState(false);
   const [showNewPwd, setShowNewPwd] = useState(false);
 
+  const fileInputRef = useRef(null);
+
+  // Local preview URL for a newly-selected (not yet uploaded) photo file.
+  // Created/revoked here so we never leak blob URLs across renders.
+  const [photoPreviewUrl, setPhotoPreviewUrl] = useState(null);
+
+  useEffect(() => {
+    if (form.profilePhoto instanceof File) {
+      const url = URL.createObjectURL(form.profilePhoto);
+      setPhotoPreviewUrl(url);
+      return () => URL.revokeObjectURL(url);
+    }
+    setPhotoPreviewUrl(null);
+  }, [form.profilePhoto]);
+
+  // Resolves to whatever should currently render in the avatar:
+  // a fresh local preview, an existing remote URL, or null.
+  const photoSrc =
+    form.profilePhoto instanceof File
+      ? photoPreviewUrl
+      : form.profilePhoto || null;
+
   useEffect(() => {
     if (!open) return;
 
@@ -56,6 +121,9 @@ const UserFormModal = ({
         ...rest,
         dateOfBirth: rest?.dateOfBirth
           ? new Date(rest.dateOfBirth).toISOString().split("T")[0]
+          : "",
+        joiningDate: rest?.joiningDate
+          ? new Date(rest.joiningDate).toISOString().split("T")[0]
           : "",
         bankDetails: {
           ...defaultForm.bankDetails,
@@ -101,16 +169,14 @@ const UserFormModal = ({
     () =>
       !isEdit ? (
         <div className="sm:col-span-2">
-          <label className="font-medium">
-            Password <RequiredStar />
-          </label>
+          <FieldLabel required>Password</FieldLabel>
           <div className="relative">
             <input
               name="password"
               type={showAddPwd ? "text" : "password"}
               value={form.password}
               onChange={handleChange}
-              className="border p-2 rounded w-full pr-10"
+              className={`${inputCls} pr-10`}
               placeholder="Enter password"
               disabled={loading}
             />
@@ -118,13 +184,13 @@ const UserFormModal = ({
               type="button"
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => setShowAddPwd((v) => !v)}
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-gray-100"
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
               disabled={loading}
             >
-              {showAddPwd ? <EyeOff size={18} /> : <Eye size={18} />}
+              {showAddPwd ? <EyeOff size={16} /> : <Eye size={16} />}
             </button>
           </div>
-          <p className="text-xs text-gray-500 mt-1">Minimum 8 characters.</p>
+          <p className="mt-1 text-xs text-slate-400">Minimum 8 characters.</p>
         </div>
       ) : null,
     [isEdit, showAddPwd, form.password, loading]
@@ -134,13 +200,15 @@ const UserFormModal = ({
     if (!isEdit) return null;
     return (
       <>
-        <div className="sm:col-span-2 flex items-center justify-between border rounded-md px-3 py-2">
-          <span className="text-sm font-medium">Change Password</span>
+        <div className="sm:col-span-2 flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-2.5">
+          <span className="text-sm font-medium text-slate-700">
+            Change Password
+          </span>
 
-          <label className="inline-flex items-center cursor-pointer">
+          <label className="inline-flex cursor-pointer items-center">
             <input
               type="checkbox"
-              className="sr-only peer"
+              className="peer sr-only"
               checked={changePwd}
               onChange={() => setChangePwd((v) => !v)}
               disabled={loading}
@@ -148,14 +216,14 @@ const UserFormModal = ({
 
             <div
               className="
-                relative w-10 h-5 rounded-full bg-gray-300
-                peer-checked:bg-blue-600
+                relative h-5 w-10 rounded-full bg-slate-300
                 transition-colors duration-200 ease-in-out
-                
-                after:content-[''] after:absolute after:top-[2px] after:left-[2px]
-                after:w-4 after:h-4 after:bg-white after:rounded-full
-                after:shadow-md after:transition-all after:duration-200
-                
+                peer-checked:bg-indigo-600
+
+                after:absolute after:left-[2px] after:top-[2px]
+                after:h-4 after:w-4 after:rounded-full after:bg-white
+                after:shadow-md after:transition-all after:duration-200 after:content-['']
+
                 peer-checked:after:translate-x-5
               "
             ></div>
@@ -166,15 +234,13 @@ const UserFormModal = ({
           <>
             {!isAdmin && (
               <div className="sm:col-span-2">
-                <label className="font-medium">
-                  Old Password <RequiredStar />
-                </label>
+                <FieldLabel required>Old Password</FieldLabel>
                 <div className="relative">
                   <input
                     type={showOldPwd ? "text" : "password"}
                     value={oldPassword}
                     onChange={(e) => setOldPassword(e.target.value)}
-                    className="border p-2 rounded w-full pr-10"
+                    className={`${inputCls} pr-10`}
                     placeholder="Enter old password"
                     disabled={loading}
                   />
@@ -182,25 +248,23 @@ const UserFormModal = ({
                     type="button"
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => setShowOldPwd((v) => !v)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-gray-100"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
                     disabled={loading}
                   >
-                    {showOldPwd ? <EyeOff size={18} /> : <Eye size={18} />}
+                    {showOldPwd ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
               </div>
             )}
 
             <div className="sm:col-span-2">
-              <label className="font-medium">
-                New Password <RequiredStar />
-              </label>
+              <FieldLabel required>New Password</FieldLabel>
               <div className="relative">
                 <input
                   type={showNewPwd ? "text" : "password"}
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  className="border p-2 rounded w-full pr-10"
+                  className={`${inputCls} pr-10`}
                   placeholder="Enter new password"
                   disabled={loading}
                 />
@@ -208,13 +272,13 @@ const UserFormModal = ({
                   type="button"
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => setShowNewPwd((v) => !v)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-gray-100"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
                   disabled={loading}
                 >
-                  {showNewPwd ? <EyeOff size={18} /> : <Eye size={18} />}
+                  {showNewPwd ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="mt-1 text-xs text-slate-400">
                 Minimum 8 characters.
               </p>
             </div>
@@ -242,6 +306,7 @@ const UserFormModal = ({
       "email",
       "mobile",
       "alternateMobile",
+      "joiningDate",
       "department",
     ];
 
@@ -264,6 +329,11 @@ const UserFormModal = ({
 
     if (form.alternateMobile.length !== 10) {
       toast.error("Alternate mobile must be exactly 10 digits.");
+      return false;
+    }
+
+    if (!form.joiningDate) {
+      toast.error("Please select joining date.");
       return false;
     }
 
@@ -294,205 +364,366 @@ const UserFormModal = ({
   const handleSubmit = () => {
     if (!validate()) return;
 
-    if (!isEdit) {
-      const payload = { ...form };
-      if (!isAdmin) {
-        delete payload.pan;
-        delete payload.aadhaar;
-        delete payload.bankDetails;
-      }
-      if (isAdmin && form.leaveInfo?.balance !== "") {
-        payload.leaveInfo = { balance: Number(form.leaveInfo.balance) };
-      }
-      onSubmit?.(payload, "add");
-    } else {
-      const { password, ...rest } = form;
-      const payload = { ...rest };
-      if (changePwd) {
-        if (isAdmin) {
-          payload.newPassword = newPassword;
-        } else {
-          payload.oldPassword = oldPassword;
-          payload.newPassword = newPassword;
-        }
-      }
+    const payload = new FormData();
 
-      if (isAdmin && form.leaveInfo?.balance !== "") {
-        payload.leaveInfo = { balance: Number(form.leaveInfo.balance) };
-      }
+    // ── Common fields ──────────────────────────────────────
+    payload.append("name", form.name);
+    payload.append("email", form.email);
+    payload.append("mobile", form.mobile);
+    payload.append("alternateMobile", form.alternateMobile);
+    payload.append("department", form.department);
+    payload.append("designation", form.designation || "");
+    payload.append("address", form.address || "");
+    payload.append("dateOfBirth", form.dateOfBirth || "");
+    payload.append("joiningDate", form.joiningDate || "");
+    payload.append("role", form.role);
 
-      if (!isAdmin) {
-        delete payload.pan;
-        delete payload.aadhaar;
-        delete payload.bankDetails;
-      }
-      onSubmit?.(payload, "edit");
+    if (form.profilePhoto) {
+      payload.append("profilePhoto", form.profilePhoto);
     }
+
+    // ── Add mode — password required ──────────────────────
+    if (!isEdit) {
+      payload.append("password", form.password);
+    }
+
+    // ── Edit mode — optional password change ──────────────
+    if (isEdit && changePwd) {
+      if (!isAdmin) payload.append("oldPassword", oldPassword);
+      payload.append("newPassword", newPassword);
+    }
+
+    // ── Leave balance ─────────────────────────────────────
+    if (isAdmin && form.leaveInfo?.balance !== "") {
+      payload.append(
+        "leaveInfo",
+        JSON.stringify({ balance: Number(form.leaveInfo.balance) })
+      );
+    }
+
+    // ── Admin-only: documents + bank ──────────────────────
+    if (isAdmin) {
+      payload.append("pan", form.pan || "");
+      payload.append("aadhaar", form.aadhaar || "");
+
+      payload.append(
+        "bankDetails",
+        JSON.stringify({
+          accountNumber: form.bankDetails.accountNumber || "",
+          ifsc: form.bankDetails.ifsc || "",
+          bankName: form.bankDetails.bankName || "",
+        })
+      );
+
+      if (form.panFile) payload.append("panFile", form.panFile);
+      if (form.aadhaarFile) payload.append("aadhaarFile", form.aadhaarFile);
+      if (form.bankDetails.passbookFile)
+        payload.append("passbookFile", form.bankDetails.passbookFile);
+    }
+
+    onSubmit?.(payload, isEdit ? "edit" : "add");
   };
 
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex justify-center items-center z-50 px-4 overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 px-4">
       <div
-        className="bg-white rounded-lg w-full max-w-lg shadow-lg flex flex-col"
+        className="flex w-full max-w-2xl flex-col rounded-2xl bg-white shadow-2xl ring-1 ring-slate-900/5"
         style={{ maxHeight: "90vh" }}
       >
-        <div className="flex justify-between items-center p-6 pb-4 border-b">
-          <h2 className="text-lg font-semibold">
-            {isEdit ? "Edit User" : "Add New User"}
-          </h2>
+        {/* Header */}
+        <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-6 py-5">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-900">
+              {isEdit ? "Edit User" : "Add New User"}
+            </h2>
+            <p className="text-xs text-slate-400">
+              {isEdit
+                ? "Update profile and access details"
+                : "Create a profile and grant access"}
+            </p>
+          </div>
           <button
             onClick={onClose}
             disabled={loading}
-            className="disabled:opacity-50 hover:bg-gray-100 rounded-full p-1"
+            className="rounded-full p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 disabled:opacity-50"
           >
-            <X size={20} />
+            <X size={18} />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6 pt-4 space-y-5">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-            <div>
-              <label className="font-medium">
-                Full Name <RequiredStar />
-              </label>
+        {/* Body */}
+        <div className="flex-1 space-y-7 overflow-y-auto px-6 py-6 text-sm">
+          {/* Profile Photo */}
+          <div className="flex flex-col items-center gap-2 border-b border-slate-100 pb-6">
+            <div
+              role="button"
+              tabIndex={0}
+              aria-label="Change profile photo"
+              onClick={() => !loading && fileInputRef.current?.click()}
+              onKeyDown={(e) => {
+                if (!loading && (e.key === "Enter" || e.key === " ")) {
+                  e.preventDefault();
+                  fileInputRef.current?.click();
+                }
+              }}
+              className={`group relative h-24 w-24 ${loading ? "cursor-not-allowed opacity-60" : "cursor-pointer"
+                }`}
+            >
+              <div className="h-24 w-24 overflow-hidden rounded-full border-2 border-white bg-slate-100 shadow ring-1 ring-slate-200">
+                {photoSrc ? (
+                  <img
+                    src={photoSrc}
+                    alt="Profile"
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center text-slate-300">
+                    <User size={32} />
+                  </div>
+                )}
+              </div>
+
+              {/* Hover overlay */}
+              <div className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-full bg-slate-900/50 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                <Camera size={18} className="text-white" />
+              </div>
+
+              {/* Edit badge */}
+              <span className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full bg-indigo-600 text-white shadow ring-2 ring-white">
+                <Camera size={13} />
+              </span>
+
               <input
-                name="name"
-                value={form.name}
-                onChange={handleChange}
-                className="border p-2 rounded w-full"
-                placeholder="Enter full name"
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                hidden
                 disabled={loading}
-              />
-            </div>
-
-            <div>
-              <label className="font-medium">
-                Email <RequiredStar />
-              </label>
-              <input
-                name="email"
-                type="email"
-                value={form.email}
-                onChange={handleChange}
-                className="border p-2 rounded w-full"
-                placeholder="Enter email"
-                disabled={loading}
-              />
-            </div>
-
-            <div>
-              <label className="font-medium">Date of Birth</label>
-              <input
-                type="date"
-                name="dateOfBirth"
-                value={form.dateOfBirth}
-                onChange={handleChange}
-                className="border p-2 rounded w-full"
-                disabled={loading}
-                max={new Date().toISOString().split("T")[0]}
-              />
-            </div>
-
-            {addModePasswordField}
-
-            <div>
-              <label className="font-medium">
-                Mobile <RequiredStar />
-              </label>
-              <input
-                name="mobile"
-                type="tel"
-                inputMode="numeric"
-                pattern="\d*"
-                value={form.mobile}
-                onChange={handleTelChange}
-                onPaste={handleTelPaste}
-                className="border p-2 rounded w-full"
-                placeholder="9876543210"
-                disabled={loading}
-              />
-            </div>
-
-            <div>
-              <label className="font-medium">
-                Alternate Mobile <RequiredStar />
-              </label>
-              <input
-                name="alternateMobile"
-                type="tel"
-                inputMode="numeric"
-                pattern="\d*"
-                value={form.alternateMobile}
-                onChange={handleTelChange}
-                onPaste={handleTelPaste}
-                className="border p-2 rounded w-full"
-                placeholder="9876543210"
-                disabled={loading}
-              />
-            </div>
-
-            <div>
-              <label className="font-medium">
-                Department <RequiredStar />
-              </label>
-              <input
-                name="department"
-                value={form.department}
-                onChange={handleChange}
-                className="border p-2 rounded w-full"
-                placeholder="Department name"
-                disabled={loading}
-              />
-            </div>
-
-            <div>
-              <label className="font-medium">Designation</label>
-              <input
-                name="designation"
-                value={form.designation}
-                onChange={handleChange}
-                className="border p-2 rounded w-full"
-                placeholder="Job title"
-                disabled={loading}
-              />
-            </div>
-
-            <div className="sm:col-span-2 pt-2 border-t">
-              <h3 className="text-sm font-semibold text-gray-700 mb-2">
-                Leave Management
-              </h3>
-            </div>
-
-            <div>
-              <label className="font-medium">Leave Balance</label>
-              <input
-                name="leaveBalance"
-                type="number"
-                value={form.leaveInfo.balance}
                 onChange={(e) =>
                   setForm((prev) => ({
                     ...prev,
-                    leaveInfo: { balance: e.target.value },
+                    profilePhoto: e.target.files[0],
                   }))
                 }
-                className="border p-2 rounded w-full"
-                placeholder="e.g. 5 or -3"
-                disabled={loading}
               />
             </div>
 
-            {isAdmin && (
-              <>
-                <div className="sm:col-span-2 pt-2 border-t">
-                  <h3 className="text-sm font-semibold text-gray-700 mb-2">
-                    Identity & Bank Details (Optional)
-                  </h3>
-                </div>
+            {photoSrc ? (
+              <a
+                href={photoSrc}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-700"
+              >
+                View full photo <ExternalLink size={11} />
+              </a>
+            ) : (
+              <p className="text-xs text-slate-400">
+                Click to upload a profile photo
+              </p>
+            )}
+          </div>
 
+          {/* Personal Information */}
+          <section>
+            <SectionHeader icon={User} title="Personal Information" />
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <FieldLabel required>Full Name</FieldLabel>
+                <input
+                  name="name"
+                  value={form.name}
+                  onChange={handleChange}
+                  className={inputCls}
+                  placeholder="Enter full name"
+                  disabled={loading}
+                />
+              </div>
+
+              <div>
+                <FieldLabel required>Email</FieldLabel>
+                <input
+                  name="email"
+                  type="email"
+                  value={form.email}
+                  onChange={handleChange}
+                  className={inputCls}
+                  placeholder="Enter email"
+                  disabled={loading}
+                />
+              </div>
+
+              <div>
+                <FieldLabel>Date of Birth</FieldLabel>
+                <input
+                  type="date"
+                  name="dateOfBirth"
+                  value={form.dateOfBirth}
+                  onChange={handleChange}
+                  className={inputCls}
+                  disabled={loading}
+                  max={new Date().toISOString().split("T")[0]}
+                />
+              </div>
+
+              <div>
+                <FieldLabel>Joining Date</FieldLabel>
+                <input
+                  type="date"
+                  name="joiningDate"
+                  value={form.joiningDate}
+                  onChange={handleChange}
+                  className={inputCls}
+                  disabled={loading}
+                  max={new Date().toISOString().split("T")[0]}
+                />
+              </div>
+
+            </div>
+          </section>
+
+          {/* Contact */}
+          <section className="border-t border-slate-100 pt-6">
+            <SectionHeader icon={Phone} title="Contact Details" />
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <FieldLabel required>Mobile</FieldLabel>
+                <input
+                  name="mobile"
+                  type="tel"
+                  inputMode="numeric"
+                  pattern="\d*"
+                  value={form.mobile}
+                  onChange={handleTelChange}
+                  onPaste={handleTelPaste}
+                  className={inputCls}
+                  placeholder="9876543210"
+                  disabled={loading}
+                />
+              </div>
+
+              <div>
+                <FieldLabel required>Alternate Mobile</FieldLabel>
+                <input
+                  name="alternateMobile"
+                  type="tel"
+                  inputMode="numeric"
+                  pattern="\d*"
+                  value={form.alternateMobile}
+                  onChange={handleTelChange}
+                  onPaste={handleTelPaste}
+                  className={inputCls}
+                  placeholder="9876543210"
+                  disabled={loading}
+                />
+              </div>
+
+              <div className="sm:col-span-2">
+                <FieldLabel>Address</FieldLabel>
+                <textarea
+                  name="address"
+                  value={form.address}
+                  onChange={handleChange}
+                  className={`${inputCls} min-h-20 resize-none`}
+                  placeholder="Full address"
+                  disabled={loading}
+                />
+              </div>
+            </div>
+          </section>
+
+          {/* Employment */}
+          <section className="border-t border-slate-100 pt-6">
+            <SectionHeader icon={Briefcase} title="Employment" />
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <FieldLabel required>Department</FieldLabel>
+                <input
+                  name="department"
+                  value={form.department}
+                  onChange={handleChange}
+                  className={inputCls}
+                  placeholder="Department name"
+                  disabled={loading}
+                />
+              </div>
+
+              <div>
+                <FieldLabel>Designation</FieldLabel>
+                <input
+                  name="designation"
+                  value={form.designation}
+                  onChange={handleChange}
+                  className={inputCls}
+                  placeholder="Job title"
+                  disabled={loading}
+                />
+              </div>
+
+              <div>
+                <FieldLabel>Role</FieldLabel>
+                <select
+                  name="role"
+                  value={form.role}
+                  onChange={handleChange}
+                  className={inputCls}
+                  disabled={loading}
+                >
+                  <option value="employee">Employee</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+            </div>
+          </section>
+
+          {/* Security */}
+          {!isEdit && (
+            <section className="border-t border-slate-100 pt-6">
+              <SectionHeader icon={Lock} title="Security" />
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                {addModePasswordField}
+                {editModePasswordBlock}
+              </div>
+            </section>
+          )}
+
+          {/* Leave Management */}
+          <section className="border-t border-slate-100 pt-6">
+            <SectionHeader icon={Wallet} title="Leave Management" />
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <FieldLabel>Leave Balance</FieldLabel>
+                <input
+                  name="leaveBalance"
+                  type="number"
+                  value={form.leaveInfo.balance}
+                  onChange={(e) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      leaveInfo: { balance: e.target.value },
+                    }))
+                  }
+                  className={inputCls}
+                  placeholder="e.g. 5 or -3"
+                  disabled={loading}
+                />
+              </div>
+            </div>
+          </section>
+
+          {/* Identity & Bank — admin only */}
+          {isAdmin && (
+            <section className="border-t border-slate-100 pt-6">
+              <SectionHeader
+                icon={Landmark}
+                title="Identity & Bank Details"
+                hint="Optional"
+              />
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
-                  <label className="font-medium">PAN</label>
+                  <FieldLabel>PAN</FieldLabel>
                   <input
                     name="pan"
                     value={form.pan}
@@ -502,14 +733,47 @@ const UserFormModal = ({
                         pan: e.target.value.toUpperCase().slice(0, 10),
                       }))
                     }
-                    className="border p-2 rounded w-full"
+                    className={inputCls}
                     placeholder="ABCDE1234F"
                     disabled={loading}
                   />
                 </div>
 
                 <div>
-                  <label className="font-medium">Aadhaar</label>
+                  <FieldLabel>PAN Document</FieldLabel>
+                  <input
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        panFile: e.target.files[0],
+                      }))
+                    }
+                    className={fileCls}
+                    disabled={loading}
+                  />
+                  {form.panFile?.name ? (
+                    <p className="mt-1 truncate text-xs text-slate-400">
+                      {form.panFile.name}
+                    </p>
+                  ) : (
+                    isEdit &&
+                    initialData?.panFile && (
+                      <a
+                        href={initialData.panFile}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-700"
+                      >
+                        View current document <ExternalLink size={11} />
+                      </a>
+                    )
+                  )}
+                </div>
+
+                <div>
+                  <FieldLabel>Aadhaar</FieldLabel>
                   <input
                     name="aadhaar"
                     value={form.aadhaar}
@@ -519,14 +783,47 @@ const UserFormModal = ({
                         aadhaar: e.target.value.replace(/\D/g, "").slice(0, 12),
                       }))
                     }
-                    className="border p-2 rounded w-full"
+                    className={inputCls}
                     placeholder="12 digit Aadhaar"
                     disabled={loading}
                   />
                 </div>
 
                 <div>
-                  <label className="font-medium">Bank Account No.</label>
+                  <FieldLabel>Aadhaar Document</FieldLabel>
+                  <input
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        aadhaarFile: e.target.files[0],
+                      }))
+                    }
+                    className={fileCls}
+                    disabled={loading}
+                  />
+                  {form.aadhaarFile?.name ? (
+                    <p className="mt-1 truncate text-xs text-slate-400">
+                      {form.aadhaarFile.name}
+                    </p>
+                  ) : (
+                    isEdit &&
+                    initialData?.aadhaarFile && (
+                      <a
+                        href={initialData.aadhaarFile}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-700"
+                      >
+                        View current document <ExternalLink size={11} />
+                      </a>
+                    )
+                  )}
+                </div>
+
+                <div>
+                  <FieldLabel>Bank Account No.</FieldLabel>
                   <input
                     name="accountNumber"
                     value={form.bankDetails.accountNumber}
@@ -541,14 +838,14 @@ const UserFormModal = ({
                         },
                       }))
                     }
-                    className="border p-2 rounded w-full"
+                    className={inputCls}
                     placeholder="1234567890"
                     disabled={loading}
                   />
                 </div>
 
                 <div>
-                  <label className="font-medium">IFSC Code</label>
+                  <FieldLabel>IFSC Code</FieldLabel>
                   <input
                     name="ifsc"
                     value={form.bankDetails.ifsc}
@@ -561,14 +858,14 @@ const UserFormModal = ({
                         },
                       }))
                     }
-                    className="border p-2 rounded w-full"
+                    className={inputCls}
                     placeholder="HDFC0001234"
                     disabled={loading}
                   />
                 </div>
 
                 <div className="sm:col-span-2">
-                  <label className="font-medium">Bank Name</label>
+                  <FieldLabel>Bank Name</FieldLabel>
                   <input
                     name="bankName"
                     value={form.bankDetails.bankName}
@@ -581,58 +878,65 @@ const UserFormModal = ({
                         },
                       }))
                     }
-                    className="border p-2 rounded w-full"
+                    className={inputCls}
                     placeholder="HDFC Bank"
                     disabled={loading}
                   />
                 </div>
-              </>
-            )}
 
-            <div>
-              <label className="font-medium">Role</label>
-              <select
-                name="role"
-                value={form.role}
-                onChange={handleChange}
-                className="border p-2 rounded w-full"
-                disabled={loading}
-              >
-                <option value="employee">Employee</option>
-                <option value="admin">Admin</option>
-              </select>
-            </div>
-
-            <div className="sm:col-span-2">
-              <label className="font-medium">
-                Address
-              </label>
-              <textarea
-                name="address"
-                value={form.address}
-                onChange={handleChange}
-                className="border p-2 rounded w-full min-h-20"
-                placeholder="Full address"
-                disabled={loading}
-              />
-            </div>
-
-            {editModePasswordBlock}
-          </div>
+                <div className="sm:col-span-2">
+                  <FieldLabel>Passbook</FieldLabel>
+                  <input
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        bankDetails: {
+                          ...prev.bankDetails,
+                          passbookFile: e.target.files[0],
+                        },
+                      }))
+                    }
+                    className={fileCls}
+                    disabled={loading}
+                  />
+                  {form.bankDetails.passbookFile?.name ? (
+                    <p className="mt-1 truncate text-xs text-slate-400">
+                      {form.bankDetails.passbookFile.name}
+                    </p>
+                  ) : (
+                    isEdit &&
+                    initialData?.bankDetails?.passbookFile && (
+                      <a
+                        href={initialData.bankDetails.passbookFile}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-700"
+                      >
+                        View current document <ExternalLink size={11} />
+                      </a>
+                    )
+                  )}
+                </div>
+              </div>
+            </section>
+          )}
         </div>
 
-        <div className="flex justify-end gap-3 p-6 pt-4 border-t bg-gray-50">
+        {/* Footer */}
+        <div className="flex shrink-0 justify-end gap-3 border-t border-slate-100 bg-slate-50 px-6 py-4">
           <button
             onClick={onClose}
             disabled={loading}
-            className="px-4 py-2 border rounded hover:bg-gray-100 disabled:opacity-50"
+            className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-white cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
           >
             Cancel
           </button>
           <button
             onClick={handleSubmit}
             disabled={loading}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-indigo-700 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
           >
             {loading ? "Saving..." : isEdit ? "Save Changes" : "Create User"}
           </button>
