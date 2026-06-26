@@ -3,6 +3,7 @@ import User from "../models/Users.js";
 import bcrypt from "bcryptjs";
 import LeaveBalance from "../models/LeaveBalance.js";
 import { updateLeaveBalanceOnLogin } from "../utils/leaveBalanceUtils.js";
+import { uploadToS3, deleteS3File } from "../utils/s3Upload/s3.js";
 
 export const register = async (req, res) => {
   try {
@@ -26,8 +27,11 @@ export const register = async (req, res) => {
       pan,
       aadhaar,
       bankDetails,
-      dateOfBirth
+      dateOfBirth,
+      joiningDate
     } = req.body;
+
+    const files = req.files || {};
 
     const requiredFields = {
       name,
@@ -75,8 +79,89 @@ export const register = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    let profilePhoto = null;
+    let parsedBankDetails = {};
+    let panFile = null;
+    let aadhaarFile = null;
+    let cancelledChequeFile = null;
+    let passbookFile = null;
+
+    if (files.profilePhoto?.length) {
+      const file = files.profilePhoto[0];
+
+      const uploaded = await uploadToS3(
+        file.buffer,
+        file.originalname,
+        file.mimetype
+      );
+
+      profilePhoto = uploaded.Location;
+    }
+
+    if (files.panFile?.length) {
+      const file = files.panFile[0];
+
+      const uploaded = await uploadToS3(
+        file.buffer,
+        file.originalname,
+        file.mimetype
+      );
+
+      panFile = uploaded.Location;
+    }
+
+    if (files.aadhaarFile?.length) {
+      const file = files.aadhaarFile[0];
+
+      const uploaded = await uploadToS3(
+        file.buffer,
+        file.originalname,
+        file.mimetype
+      );
+
+      aadhaarFile = uploaded.Location;
+    }
+
+    if (bankDetails) {
+      parsedBankDetails =
+        typeof bankDetails === "string"
+          ? JSON.parse(bankDetails)
+          : bankDetails;
+    }
+
+    if (files.cancelledChequeFile?.length) {
+      const file = files.cancelledChequeFile[0];
+
+      const uploaded = await uploadToS3(
+        file.buffer,
+        file.originalname,
+        file.mimetype
+      );
+
+      cancelledChequeFile = uploaded.Location;
+    }
+
+    if (files.passbookFile?.length) {
+      const file = files.passbookFile[0];
+
+      const uploaded = await uploadToS3(
+        file.buffer,
+        file.originalname,
+        file.mimetype
+      );
+
+      passbookFile = uploaded.Location;
+    }
+
+    parsedBankDetails = {
+      ...parsedBankDetails,
+      cancelledChequeFile,
+      passbookFile,
+    };
+
     const user = await User.create({
       name,
+      profilePhoto,
       email,
       mobile,
       alternateMobile,
@@ -87,8 +172,14 @@ export const register = async (req, res) => {
       role: role || "employee",
       pan,
       aadhaar,
-      bankDetails: bankDetails || undefined,
+      panFile,
+      aadhaarFile,
+      bankDetails:
+        Object.keys(parsedBankDetails).length > 0
+          ? parsedBankDetails
+          : undefined,
       dateOfBirth: dateOfBirth || null,
+      joiningDate,
       isActive: true,
     });
 
@@ -286,9 +377,11 @@ export const deleteUser = async (req, res) => {
 
 export const updateUser = async (req, res) => {
   try {
+    // const id = req.user.id || req.user._id?.toString();
     const { id } = req.params;
     const { oldPassword, newPassword, bankDetails, leaveInfo, isActive, ...rest } =
       req.body;
+    const files = req.files || {};
 
     // 1️⃣ Access Control
     if (req.user.role !== "admin" && req.user._id.toString() !== id) {
@@ -349,7 +442,8 @@ export const updateUser = async (req, res) => {
 
     // 6️⃣ Handle Bank Details
     if (bankDetails) {
-      const bd = { ...bankDetails };
+      const parsed = typeof bankDetails === "string" ? JSON.parse(bankDetails) : bankDetails;
+      const bd = { ...parsed };
 
       // Convert empty to null
       Object.keys(bd).forEach((key) => {
@@ -441,6 +535,98 @@ export const updateUser = async (req, res) => {
       }
 
       updateData.dateOfBirth = dateOfBirth;
+    }
+
+    // UPLOADING AND DELETING THE AADHAR, PAN, BANK FILES AND PROFILE PHOTO FROM ACCOUNT
+    if (files.profilePhoto?.length) {
+      // if (user.profilePhoto) {
+      //   await deleteS3File(user.profilePhoto);
+      // }
+
+      const file = files.profilePhoto[0];
+
+      const uploaded = await uploadToS3(
+        file.buffer,
+        file.originalname,
+        file.mimetype
+      );
+
+      updateData.profilePhoto = uploaded.Location;
+    }
+
+    // UPLOAD PAN
+    if (files.panFile?.length) {
+      // if (user.panFile) {
+      //   await deleteS3File(user.panFile);
+      // }
+
+      const file = files.panFile[0];
+
+      const uploaded = await uploadToS3(
+        file.buffer,
+        file.originalname,
+        file.mimetype
+      );
+
+      updateData.panFile = uploaded.Location;
+    }
+
+    // UPLOAD AADHAR
+    if (files.aadhaarFile?.length) {
+      // if (user.aadhaarFile) {
+      //   await deleteS3File(user.aadhaarFile);
+      // }
+
+      const file = files.aadhaarFile[0];
+
+      const uploaded = await uploadToS3(
+        file.buffer,
+        file.originalname,
+        file.mimetype
+      );
+
+      updateData.aadhaarFile = uploaded.Location;
+    }
+
+    // UPLOAD BANK CANCELLED CHEQUE AND PASSBOOK
+    if (files.cancelledChequeFile?.length) {
+      // if (user.bankDetails?.cancelledChequeFile) {
+      //   await deleteS3File(user.bankDetails.cancelledChequeFile);
+      // }
+
+      const file = files.cancelledChequeFile[0];
+
+      const uploaded = await uploadToS3(
+        file.buffer,
+        file.originalname,
+        file.mimetype
+      );
+
+      updateData.bankDetails = {
+        ...(user.bankDetails?.toObject?.() || {}),
+        ...(updateData.bankDetails || {}),
+        cancelledChequeFile: uploaded.Location,
+      };
+    }
+
+    if (files.passbookFile?.length) {
+      // if (user.bankDetails?.passbookFile) {
+      //   await deleteS3File(user.bankDetails.passbookFile);
+      // }
+
+      const file = files.passbookFile[0];
+
+      const uploaded = await uploadToS3(
+        file.buffer,
+        file.originalname,
+        file.mimetype
+      );
+
+      updateData.bankDetails = {
+        ...(user.bankDetails?.toObject?.() || {}),
+        ...(updateData.bankDetails || {}),
+        passbookFile: uploaded.Location,
+      };
     }
 
     // 8️⃣ Perform Update

@@ -5,6 +5,11 @@ const userSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
 
+    profilePhoto: {
+      type: String, // S3 URL
+      default: null,
+    },
+
     mobile: {
       type: String,
       required: true,
@@ -27,11 +32,13 @@ const userSchema = new mongoose.Schema(
 
     dateOfBirth: Date,
 
+    joiningDate: Date,
+
     passwordHash: { type: String, required: true },
 
     role: {
       type: String,
-      enum: ["admin", "employee"],
+      enum: ["admin", "employee", "hr"],
       default: "employee",
       required: true,
     },
@@ -61,6 +68,11 @@ const userSchema = new mongoose.Schema(
       match: /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/, // PAN format
     },
 
+    panFile: {
+      type: String, // S3 URL
+      default: null,
+    },
+
     aadhaar: {
       type: String,
       unique: true,
@@ -68,6 +80,11 @@ const userSchema = new mongoose.Schema(
       // minlength: 12,
       // maxlength: 12,
       match: /^[0-9]{12}$/, // Aadhaar 12 digits
+    },
+
+    aadhaarFile: {
+      type: String, // S3 URL
+      default: null,
     },
 
     // Bank details
@@ -90,6 +107,16 @@ const userSchema = new mongoose.Schema(
       bankName: {
         type: String,
         trim: true,
+      },
+
+      cancelledChequeFile: {
+        type: String, // S3 URL
+        default: null,
+      },
+
+      passbookFile: {
+        type: String, // S3 URL
+        default: null,
       },
     },
   },
