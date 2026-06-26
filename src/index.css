@@ -1,0 +1,17 @@
+@import url("https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&display=swap");
+@import "tailwindcss";
+
+
+* {
+  font-family: "Outfit", sans-serif;
+}
+
+/* Hide scrollbar while maintaining scroll functionality */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
