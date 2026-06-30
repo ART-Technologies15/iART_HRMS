@@ -51,6 +51,8 @@ const UpcomingHolidaysCard = ({ calendarData = [] }) => {
       ) : (
         <div className="space-y-2">
           {holidays.map((h, idx) => {
+            console.log("hhhh", h);
+            
             const diff = h.diff;
             const soon = diff <= 14;
             const badgeLabel =
@@ -79,7 +81,7 @@ const UpcomingHolidaysCard = ({ calendarData = [] }) => {
 
                 {/* Info */}
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-800 truncate">{h.reason}</p>
+                  <p className="text-sm font-medium text-gray-800 truncate" title={h.reason}>{h.reason}</p>
                   <p className="text-xs text-gray-400 mt-0.5">{h.date.format("ddd, DD MMM YYYY")}</p>
                 </div>
 

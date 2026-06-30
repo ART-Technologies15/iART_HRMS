@@ -11,6 +11,7 @@ import {
   Calendar,
   Logs,
   CalendarDays,
+  Megaphone
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
@@ -66,6 +67,14 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, user }) => {
               className={linkClasses}
             >
               <CalendarDays className="w-5 h-5" /> Monthly Attendance
+            </NavLink>
+
+            <NavLink
+              to="/notification"
+              onClick={() => setSidebarOpen(false)}
+              className={linkClasses}
+            >
+              <Megaphone className="w-5 h-5" /> Notification
             </NavLink>
 
 

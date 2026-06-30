@@ -7,7 +7,7 @@ import { getAllUsers } from "../api/authApi";
 import Loader from "../components/Loader";
 import { useAuth } from "../context/AuthContext";
 
-const PER_PAGE = 9;
+const PER_PAGE = 10;
 
 const PhoneBookPage = () => {
   const [users, setUsers] = useState([]);

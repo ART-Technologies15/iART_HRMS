@@ -13,22 +13,57 @@ const CustomTable = ({
   tdClassName = "",
   stickyCols = 0,
   stickyColWidth = 140,
-  hidePagination = false, // NEW PROP
+  hidePagination = false,
+
+  // Server-side / controlled pagination props
+  currentPage: controlledPage,
+  totalPages: controlledTotalPages,
+  totalRecords,
+  rowsPerPage: controlledRowsPerPage,
+  onPageChange,
+  onRowsPerPageChange,
 }) => {
-  const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(defaultRowsPerPage);
+  // Internal state — only used when no controlled props are passed
+  const [internalPage, setInternalPage] = useState(1);
+  const [internalRowsPerPage, setInternalRowsPerPage] = useState(defaultRowsPerPage);
 
-  // If pagination is hidden → show all rows
+  // Decide: controlled (server-side) vs uncontrolled (client-side)
+  const isControlled = typeof onPageChange === "function";
+
+  const page = isControlled ? controlledPage : internalPage;
+  const rowsPerPage = isControlled ? controlledRowsPerPage : internalRowsPerPage;
+  const totalPages = isControlled
+    ? controlledTotalPages
+    : Math.max(1, Math.ceil(data.length / rowsPerPage));
+
+  // In controlled mode, data is already the current page's slice from server
+  // In uncontrolled mode, slice it client-side
+  const paginatedData = isControlled
+    ? data
+    : data.slice((page - 1) * rowsPerPage, page * rowsPerPage);
+
   const effectiveRowsPerPage = hidePagination ? data.length : rowsPerPage;
+  const finalPaginatedData = hidePagination ? data : paginatedData;
 
-  const totalPages = Math.max(1, Math.ceil(data.length / effectiveRowsPerPage));
-  const paginatedData = data.slice(
-    (currentPage - 1) * effectiveRowsPerPage,
-    currentPage * effectiveRowsPerPage
-  );
+  const handlePrev = () => {
+    if (isControlled) onPageChange(page - 1);
+    else setInternalPage((p) => Math.max(p - 1, 1));
+  };
 
-  const handlePrev = () => setCurrentPage((p) => Math.max(p - 1, 1));
-  const handleNext = () => setCurrentPage((p) => Math.min(p + 1, totalPages));
+  const handleNext = () => {
+    if (isControlled) onPageChange(page + 1);
+    else setInternalPage((p) => Math.min(p + 1, totalPages));
+  };
+
+  const handleRowsPerPageChange = (e) => {
+    const value = Number(e.target.value);
+    if (isControlled) {
+      onRowsPerPageChange?.(value);
+    } else {
+      setInternalRowsPerPage(value);
+      setInternalPage(1);
+    }
+  };
 
   const getThClasses = (col, idx) =>
     typeof thClassName === "function" ? thClassName(col, idx) : thClassName;
@@ -42,21 +77,18 @@ const CustomTable = ({
       className={`bg-white p-4 border-b border-slate-200 ${onRowClick ? "cursor-pointer active:bg-slate-50" : ""
         }`}
     >
-      {/* First Row */}
       <div className="min-w-0 flex-1">
-        <h3 className="font-semibold text-slate-900 text-base">
-          Record
-        </h3>
+        <h3 className="font-semibold text-slate-900 text-base">Record</h3>
       </div>
 
       {row.status && (
         <div className="my-2">
           <span
             className={`text-xs px-2 py-1 my-3 rounded-full whitespace-nowrap ${row.status === "Approved"
-              ? "bg-green-100 text-green-700"
-              : row.status === "Rejected"
-                ? "bg-red-100 text-red-700"
-                : "bg-yellow-100 text-yellow-700"
+                ? "bg-green-100 text-green-700"
+                : row.status === "Rejected"
+                  ? "bg-red-100 text-red-700"
+                  : "bg-yellow-100 text-yellow-700"
               }`}
           >
             {row.status}
@@ -64,8 +96,7 @@ const CustomTable = ({
         </div>
       )}
 
-      {/* Details */}
-      <div className="grid grid-cols-1 gap-y-2 ">
+      <div className="grid grid-cols-1 gap-y-2">
         {columns.map((col, idx) => {
           const value = col.render
             ? col.render(row[col.accessor], row)
@@ -87,10 +118,7 @@ const CustomTable = ({
               <p className="text-[11px] uppercase tracking-wide text-slate-400 mb-1">
                 {col.label}
               </p>
-
-              <div className="text-sm text-slate-700 break-words">
-                {value}
-              </div>
+              <div className="text-sm text-slate-700 break-words">{value}</div>
             </div>
           );
         })}
@@ -100,7 +128,7 @@ const CustomTable = ({
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-      {/* Desktop Table (Scrollable) */}
+      {/* Desktop Table */}
       <div className="hidden md:block overflow-x-auto">
         <table
           className={`w-full text-sm text-slate-700 ${tableClassName}`}
@@ -140,7 +168,7 @@ const CustomTable = ({
           </thead>
 
           <tbody>
-            {paginatedData.map((row, rIdx) => (
+            {finalPaginatedData.map((row, rIdx) => (
               <tr
                 key={rIdx}
                 className={`border-b border-slate-100 hover:bg-slate-50 transition ${onRowClick ? "cursor-pointer" : ""
@@ -149,10 +177,7 @@ const CustomTable = ({
               >
                 {columns.map((col, cIdx) => {
                   const isSticky = cIdx < stickyCols;
-                  const leftOffset = isSticky
-                    ? cIdx * stickyColWidth
-                    : undefined;
-
+                  const leftOffset = isSticky ? cIdx * stickyColWidth : undefined;
                   const style = isSticky
                     ? {
                       position: "sticky",
@@ -185,12 +210,12 @@ const CustomTable = ({
 
       {/* Mobile Cards */}
       <div className="md:hidden">
-        {paginatedData.map((row, idx) => (
+        {finalPaginatedData.map((row, idx) => (
           <MobileCard key={idx} row={row} />
         ))}
       </div>
 
-      {/* Hide footer when hidePagination=true */}
+      {/* Footer / Pagination */}
       {!hidePagination && (
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-4 text-sm text-slate-600 border-t border-slate-200">
           {footerLegend.length > 0 && (
@@ -204,17 +229,13 @@ const CustomTable = ({
             </div>
           )}
 
-          {/* Pagination Controls */}
           <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
             <span className="hidden sm:inline">Rows per page</span>
 
             <select
               className="border border-slate-300 rounded-md px-2 py-1 text-slate-700"
               value={rowsPerPage}
-              onChange={(e) => {
-                setRowsPerPage(Number(e.target.value));
-                setCurrentPage(1);
-              }}
+              onChange={handleRowsPerPageChange}
             >
               {rowsPerPageOptions.map((num) => (
                 <option key={num} value={num}>
@@ -225,26 +246,26 @@ const CustomTable = ({
 
             <button
               onClick={handlePrev}
-              disabled={currentPage === 1}
-              className={`p-1 rounded-md border ${currentPage === 1
-                ? "opacity-40 cursor-not-allowed"
-                : "hover:bg-slate-100"
+              disabled={page === 1}
+              className={`p-1 rounded-md border ${page === 1
+                  ? "opacity-40 cursor-not-allowed"
+                  : "hover:bg-slate-100"
                 }`}
             >
               <ChevronLeft size={16} />
             </button>
 
             <span className="min-w-[4rem] text-center">
-              {String(currentPage).padStart(2, "0")} /{" "}
+              {String(page).padStart(2, "0")} /{" "}
               {String(totalPages).padStart(2, "0")}
             </span>
 
             <button
               onClick={handleNext}
-              disabled={currentPage === totalPages}
-              className={`p-1 rounded-md border ${currentPage === totalPages
-                ? "opacity-40 cursor-not-allowed"
-                : "hover:bg-slate-100"
+              disabled={page === totalPages}
+              className={`p-1 rounded-md border ${page === totalPages
+                  ? "opacity-40 cursor-not-allowed"
+                  : "hover:bg-slate-100"
                 }`}
             >
               <ChevronRight size={16} />

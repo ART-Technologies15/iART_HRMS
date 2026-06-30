@@ -384,7 +384,7 @@ const LeavesPage = () => {
               {(row.status === "approved" || row.status === "rejected") && (
                 <button
                   onClick={() => handleMarkPending(row)}
-                  className="px-2 py-1 text-xs rounded border hover:bg-gray-50 flex items-center gap-1"
+                  className="px-2 py-1 text-xs rounded border bg-orange-300 hover:bg-orange-400 flex items-center gap-1"
                 >
                   <CalendarDays size={14} /> Pending
                 </button>

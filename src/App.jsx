@@ -16,6 +16,7 @@ import { AdminRoute, EmployeeRoute } from "./routes/RoleRoute";
 import YearCalendar from "./pages/Calendar";
 import DashboardRouter from "./routes/DashboardRouter";
 import AdminMonthlyAttendance from "./pages/AdminMonthlyAttendance";
+import Notification from "./pages/Notification";
 
 const App = () => {
   return (
@@ -85,6 +86,14 @@ const App = () => {
             element={
               <AdminRoute>
                 <AdminAttendanceReport />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/notification"
+            element={
+              <AdminRoute>
+                <Notification />
               </AdminRoute>
             }
           />

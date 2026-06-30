@@ -484,77 +484,111 @@ const Account = () => {
       <div className="max-w-6xl mx-auto">
 
         {/* ── Profile hero card ── */}
-        <div className="bg-white rounded-2xl border border-gray-200 p-6 mb-6 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="relative group">
+        <div className="mb-6 rounded-2xl border border-gray-200 bg-white p-4 sm:p-5 lg:p-6">
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
 
-              {/* Avatar Container with Hover Effect */}
-              <div className="w-20 h-20 rounded-full overflow-hidden bg-blue-100 border border-gray-200 shadow-sm 
-                      transition-all duration-200 group-hover:scale-105 group-hover:shadow-md">
-                <Avatar
-                  name={formData.name}
-                  profilePhoto={profilePreview || user?.profilePhoto}
-                />
-              </div>
+            {/* Left Section */}
+            <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-center sm:text-left text-center">
 
-              {/* Edit Overlay - Pencil Icon */}
-              {editMode && (
-                <>
-                  <label
-                    htmlFor="profilePhotoInput"
-                    className="absolute inset-0 rounded-full bg-black/50 opacity-0 
-                       group-hover:opacity-100 transition-all duration-200 
-                       flex items-center justify-center cursor-pointer"
-                  >
-                    <Pencil size={20} className="text-white drop-shadow-sm" />
-                  </label>
+              {/* Avatar */}
+              <div className="relative group flex-shrink-0">
 
-                  <input
-                    id="profilePhotoInput"
-                    type="file"
-                    name="profilePhoto"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={onFileChange}
-                  />
-                </>
-              )}
-
-              {/* View Full Photo Link */}
-              {!editMode && (profilePreview || user?.profilePhoto) && (
-                <a
-                  href={user?.profilePhoto || "#"}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-700"
+                <div
+                  className="w-20 h-20 rounded-full overflow-hidden bg-blue-100 border border-gray-200 shadow-sm
+          transition-all duration-200 group-hover:scale-105 group-hover:shadow-md"
                 >
-                  View full <ExternalLink size={11} />
-                </a>
-              )}
-            </div>
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900">{formData.name || "—"}</h2>
-              <p className="text-sm text-gray-500">{formData.email}</p>
-              <div className="flex items-center gap-2 mt-1.5">
-                <span className="text-xs bg-blue-50 text-blue-600 border border-blue-100
-                                 px-2.5 py-0.5 rounded-full font-medium capitalize">
-                  {formData.role}
-                </span>
+                  <Avatar
+                    name={formData.name}
+                    profilePhoto={profilePreview || user?.profilePhoto}
+                  />
+                </div>
+
+                {editMode && (
+                  <>
+                    <label
+                      htmlFor="profilePhotoInput"
+                      className="absolute inset-0 rounded-full bg-black/45
+      flex items-center justify-center cursor-pointer transition"
+                    >
+                      <Pencil size={22} className="text-white" />
+                    </label>
+
+                    <input
+                      id="profilePhotoInput"
+                      type="file"
+                      name="profilePhoto"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={onFileChange}
+                    />
+                  </>
+                )}
+
+                {!editMode && (profilePreview || user?.profilePhoto) && (
+                  <a
+                    href={user?.profilePhoto || "#"}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-2 flex items-center justify-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-700"
+                  >
+                    View full <ExternalLink size={11} />
+                  </a>
+                )}
+              </div>
+
+              {/* User Info */}
+              <div className="min-w-0">
+                <h2 className="break-words text-lg sm:text-xl font-semibold text-gray-900">
+                  {formData.name || "—"}
+                </h2>
+
+                <p className="mt-1 break-all text-sm text-gray-500">
+                  {formData.email}
+                </p>
+
+                <div className="mt-2 flex justify-center sm:justify-start">
+                  <span
+                    className="rounded-full border border-blue-100 bg-blue-50
+            px-3 py-1 text-xs font-medium capitalize text-blue-600"
+                  >
+                    {formData.role}
+                  </span>
+                </div>
               </div>
             </div>
+
+            {/* Right Button */}
+            <div className="w-full sm:w-auto">
+              {!editMode ? (
+                <button
+                  onClick={() => {
+                    setActiveTab("profile");
+                    setEditMode(true);
+                  }}
+                  className="flex w-full sm:w-auto items-center justify-center gap-2 rounded-lg
+          bg-blue-500 px-5 py-2.5 text-sm text-white transition
+          hover:bg-blue-600 cursor-pointer"
+                >
+                  <Pencil size={15} />
+                  Edit Profile
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    resetForm();
+                    setEditMode(false);
+                  }}
+                  className="w-full sm:w-auto rounded-lg border border-gray-200
+          px-5 py-2.5 text-sm text-gray-600 transition
+          hover:bg-gray-50 cursor-pointer"
+                >
+                  Cancel
+                </button>
+              )}
+            </div>
+
           </div>
-          {!editMode ?
-            <button onClick={() => { setActiveTab("profile"); setEditMode(true); }}
-              className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white
-                         text-sm px-4 py-2 rounded-lg transition flex-shrink-0 cursor-pointer">
-              <Pencil size={14} /> Edit Profile
-            </button>
-            :
-            <button type="button" onClick={() => { resetForm(); setEditMode(false); }}
-              className="border border-gray-200 px-5 py-2 rounded-lg cursor-pointer text-sm text-gray-600 hover:bg-gray-50 transition">
-              Cancel
-            </button>
-          }
         </div>
 
         {/* ── Main card ── */}

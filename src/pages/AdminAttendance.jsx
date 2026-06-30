@@ -24,9 +24,8 @@ const AdminAttendance = () => {
       render: (value, row) => (
         <div className="flex items-center gap-2">
           <span
-            className={`w-3 h-3 rounded-full ${
-              row.onTime ? "bg-green-500" : "bg-orange-500"
-            }`}
+            className={`w-3 h-3 rounded-full ${row.onTime ? "bg-green-500" : "bg-orange-500"
+              }`}
           />
           {value}
         </div>
@@ -34,6 +33,7 @@ const AdminAttendance = () => {
     },
     { label: "Time Out", accessor: "timeOut" },
     { label: "Working Hours", accessor: "workingHours" },
+    // { label: "Working Percentage", accessor: "workingPercentage" },
     { label: "Status", accessor: "status" },
   ];
 
@@ -48,31 +48,31 @@ const AdminAttendance = () => {
   const fetchAttendance = async () => {
     try {
       const res = await getAdminAttendanceByDate(selectedDate);
-      const filteredRes = res.data.filter((item) => item.userId !== user._id);
 
-      const formatted = filteredRes.map((item) => ({
+      const formatted = res?.data?.map((item) => ({
         userId: item.userId,
         name: item.name,
         timeIn: item.punchIn
           ? new Date(item.punchIn).toLocaleTimeString("en-US", {
-              hour: "2-digit",
-              minute: "2-digit",
-            })
+            hour: "2-digit",
+            minute: "2-digit",
+          })
           : "-",
         timeOut: item.punchOut
           ? new Date(item.punchOut).toLocaleTimeString("en-US", {
-              hour: "2-digit",
-              minute: "2-digit",
-            })
+            hour: "2-digit",
+            minute: "2-digit",
+          })
           : "-",
         workingHours: item.totalHours ? formatSeconds(item.totalHours) : "0s",
+        workingPercentage: item.percent ? `${item.percent}%` : "0%",
         status: item.status,
         onTime: item.onTime,
       }));
 
       setAttendanceData(formatted);
       setUsers(
-        filteredRes.map((u) => ({
+        res?.data?.map((u) => ({
           id: u.userId,
           name: u.name,
         }))

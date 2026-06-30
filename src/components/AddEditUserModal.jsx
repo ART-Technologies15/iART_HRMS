@@ -14,6 +14,18 @@ import {
 } from "lucide-react";
 import { toast } from "react-toastify";
 
+const DEPARTMENT_OPTIONS = [
+  "Web Dev",
+  "Design",
+  "Mobile Dev",
+  "Human Resource",
+  "Sale",
+  "Internship/Trainee",
+  "Management",
+  "Administration",
+  "Other",
+];
+
 const defaultForm = {
   name: "",
   email: "",
@@ -23,6 +35,7 @@ const defaultForm = {
   alternateMobile: "",
   address: "",
   department: "",
+  customDepartment: "",
   designation: "",
   dateOfBirth: "",
   joiningDate: "",
@@ -115,10 +128,25 @@ const UserFormModal = ({
     if (!open) return;
 
     if (isEdit) {
-      const { password, bankDetails, leaveInfo, ...rest } = initialData || {};
+      const { password, bankDetails, leaveInfo, department, ...rest } =
+        initialData || {};
+
+      // If the stored department isn't one of our preset options, treat it
+      // as a pre-existing custom value: select "Other" in the dropdown and
+      // surface the actual text in the manual field for editing.
+      const isPreset = DEPARTMENT_OPTIONS.includes(department);
+      const departmentValue = department
+        ? isPreset
+          ? department
+          : "Other"
+        : "";
+      const customDepartmentValue = department && !isPreset ? department : "";
+
       setForm({
         ...defaultForm,
         ...rest,
+        department: departmentValue,
+        customDepartment: customDepartmentValue,
         dateOfBirth: rest?.dateOfBirth
           ? new Date(rest.dateOfBirth).toISOString().split("T")[0]
           : "",
@@ -317,6 +345,11 @@ const UserFormModal = ({
       }
     }
 
+    if (form.department === "Other" && !String(form.customDepartment || "").trim()) {
+      toast.error("Please enter the department name.");
+      return false;
+    }
+
     if (!isValidEmail(form.email)) {
       toast.error("Please enter a valid email.");
       return false;
@@ -366,12 +399,20 @@ const UserFormModal = ({
 
     const payload = new FormData();
 
+    // Resolve "Other" + manual text down to a single plain department
+    // string, same as before — backend doesn't need to know it came
+    // from a custom field.
+    const resolvedDepartment =
+      form.department === "Other"
+        ? form.customDepartment.trim()
+        : form.department;
+
     // ── Common fields ──────────────────────────────────────
     payload.append("name", form.name);
     payload.append("email", form.email);
     payload.append("mobile", form.mobile);
     payload.append("alternateMobile", form.alternateMobile);
-    payload.append("department", form.department);
+    payload.append("department", resolvedDepartment);
     payload.append("designation", form.designation || "");
     payload.append("address", form.address || "");
     payload.append("dateOfBirth", form.dateOfBirth || "");
@@ -640,14 +681,43 @@ const UserFormModal = ({
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <FieldLabel required>Department</FieldLabel>
-                <input
+                <select
                   name="department"
                   value={form.department}
-                  onChange={handleChange}
+                  onChange={(e) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      department: e.target.value,
+                      // Clear any leftover custom text the moment they
+                      // switch away from "Other", so a stale value can't
+                      // silently get submitted if they flip back and forth.
+                      customDepartment:
+                        e.target.value === "Other" ? prev.customDepartment : "",
+                    }))
+                  }
                   className={inputCls}
-                  placeholder="Department name"
                   disabled={loading}
-                />
+                >
+                  <option value="" disabled>
+                    Select department
+                  </option>
+                  {DEPARTMENT_OPTIONS.map((opt) => (
+                    <option key={opt} value={opt}>
+                      {opt}
+                    </option>
+                  ))}
+                </select>
+
+                {form.department === "Other" && (
+                  <input
+                    name="customDepartment"
+                    value={form.customDepartment}
+                    onChange={handleChange}
+                    className={`${inputCls} mt-2`}
+                    placeholder="Enter department name"
+                    disabled={loading}
+                  />
+                )}
               </div>
 
               <div>
@@ -672,7 +742,7 @@ const UserFormModal = ({
                   disabled={loading}
                 >
                   <option value="employee">Employee</option>
-                  <option value="admin">Admin</option>
+                  <option value="hr">HR</option>
                 </select>
               </div>
             </div>

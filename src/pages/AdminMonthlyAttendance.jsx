@@ -106,8 +106,7 @@ const AdminMonthlyAttendance = () => {
       const cellData = row[userId];
       const status = cellData?.status || 'Absent';
 
-      // Skip future dates (--) and holidays
-      if (status === '--' || status === 'Holiday' || status === 'On Leave') {
+      if (status === '--' || status === 'Holiday' || status === 'On Leave' || status === 'Not Joined') {
         return;
       }
 
@@ -185,6 +184,16 @@ const AdminMonthlyAttendance = () => {
         display: 'inline-block',
         minWidth: '90px'
       },
+      'Not Joined': {
+        backgroundColor: '#f3f4f6',
+        color: '#9ca3af',
+        padding: '4px 8px',
+        borderRadius: '4px',
+        textAlign: 'center',
+        fontWeight: 500,
+        display: 'inline-block',
+        minWidth: '90px'
+      },
       '--': {
         color: '#9ca3af',
         padding: '4px 8px',
@@ -199,9 +208,18 @@ const AdminMonthlyAttendance = () => {
   };
 
   return (
-    <div className="p-4 sm:p-6 space-y-6 bg-[#F3F8FB] min-h-screen max-w-full overflow-x-hidden">
+    /*
+      FIX (page-level): the outer wrapper is now a flex column pinned to
+      the viewport height (h-screen) instead of growing tall and relying
+      on the page to scroll. The header/filters take their natural
+      height (shrink-0); the table card fills the rest (flex-1, min-h-0).
+      This is what lets the table size itself "to the screen" and is
+      also what stops the page itself from having a scrollbar — only
+      the table scrolls now.
+    */
+    <div className="h-full flex flex-col p-2 gap-4 bg-[#F3F8FB] max-w-full overflow-hidden">
       {/* -------------------------------- Header + Filters ------------------------------- */}
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center shrink-0">
         <h1 className="text-xl sm:text-2xl font-semibold text-gray-800">
           Monthly Attendance
         </h1>
@@ -242,7 +260,7 @@ const AdminMonthlyAttendance = () => {
 
       {/* -------------------------------- Mobile Filters ------------------------------- */}
       {mobileMenuOpen && (
-        <div className="lg:hidden grid grid-cols-1 sm:grid-cols-2 gap-3 pb-4 border-b border-gray-200">
+        <div className="lg:hidden grid grid-cols-1 sm:grid-cols-2 gap-3 pb-4 border-b border-gray-200 shrink-0">
           <select
             value={month}
             onChange={(e) => setMonth(Number(e.target.value))}
@@ -278,23 +296,34 @@ const AdminMonthlyAttendance = () => {
 
 
       {/* -------------------------------- Table ------------------------------- */}
+      {/*
+        FIX (table-level):
+        - `flex-1 min-h-0` lets this card fill whatever space is left
+          under the header/filters, on any screen size — no hardcoded
+          700px, no relying on the page to scroll.
+        - The scroll container below uses `h-full` (fills that card)
+          instead of a fixed maxHeight, so it's always sized to the
+          actual available screen space.
+        - Removed `scrollbar-hide` / `scrollbarWidth: none` — that was
+          why the scrollbar wasn't visible before. Now it's a normal
+          visible native scrollbar (both directions), giving a clear
+          affordance that the table itself is what scrolls.
+      */}
       {!loading && usersList.length > 0 && rows.length > 0 && (
-        <div
-          className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden w-full max-w-[calc(100vw-3rem)] lg:max-w-[calc(100vw-20rem)]"
-        >
-          <div
-            className="overflow-x-auto overflow-y-auto scrollbar-hide"
-            style={{
-              maxHeight: '700px',
-              scrollbarWidth: 'none', /* Firefox */
-              msOverflowStyle: 'none'  /* IE and Edge */
-            }}
-          >
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex-1 min-h-0">
+          <div className="overflow-auto h-full">
             <table className="w-full text-sm" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
-              <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-20">
+              <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
+                  {/*
+                    Sticky is set on each <th>/<td> individually (not on
+                    <thead>) since that's what works reliably inside a
+                    scrolling container. Corner cell sticks both top and
+                    left so it stays pinned no matter which direction
+                    you scroll.
+                  */}
                   <th
-                    className="py-2 px-2 text-left font-semibold text-slate-600 whitespace-nowrap sticky left-0 bg-slate-50 z-30"
+                    className="py-2 px-2 text-left font-semibold text-slate-600 whitespace-nowrap sticky top-0 left-0 bg-slate-50 z-40"
                     style={{ minWidth: '100px' }}
                   >
                     Date
@@ -302,7 +331,7 @@ const AdminMonthlyAttendance = () => {
                   {usersList.map((user) => (
                     <th
                       key={user.id}
-                      className="py-2 px-2 text-center font-semibold text-slate-600 whitespace-nowrap"
+                      className="py-2 px-2 text-center font-semibold text-slate-600 whitespace-nowrap sticky top-0 bg-slate-50 z-20"
                       style={{ minWidth: '100px' }}
                     >
                       {user.name}
@@ -334,7 +363,6 @@ const AdminMonthlyAttendance = () => {
                           style={{ minWidth: '100px' }}
                         >
                           <div style={getStatusStyle(status)}>
-                            {/* Show dot only for Present or Half Day status */}
                             {(status === 'Present' || status === 'Half Day') && onTime !== null && (
                               <span
                                 style={{
@@ -356,12 +384,11 @@ const AdminMonthlyAttendance = () => {
                   </tr>
                 ))}
               </tbody>
-              <tfoot className="bg-slate-50 border-t-2 border-slate-300">
+              <tfoot className="bg-slate-50 border-t-2 border-slate-300 sticky bottom-0 z-20">
 
-                {/* Present Full Days Row */}
                 <tr className="border-b border-slate-200">
                   <td
-                    className="py-2 px-2 text-left font-bold text-slate-700 whitespace-nowrap sticky left-0 bg-slate-50"
+                    className="py-2 px-2 text-left font-bold text-slate-700 whitespace-nowrap sticky left-0 bg-slate-50 z-30"
                     style={{ minWidth: '100px' }}
                   >
                     Present (Full) / Working Days
@@ -371,7 +398,7 @@ const AdminMonthlyAttendance = () => {
                     return (
                       <td
                         key={user.id}
-                        className="py-2 px-2 text-center font-semibold whitespace-nowrap"
+                        className="py-2 px-2 text-center font-semibold whitespace-nowrap bg-slate-50"
                         style={{ minWidth: '100px' }}
                       >
                         <span className="bg-green-50 text-green-700 px-2 py-1 rounded-md text-xs">
@@ -381,10 +408,9 @@ const AdminMonthlyAttendance = () => {
                     );
                   })}
                 </tr>
-                {/* Half Days Row */}
                 <tr className="border-b border-slate-200">
                   <td
-                    className="py-2 px-2 text-left font-bold text-slate-700 whitespace-nowrap sticky left-0 bg-slate-50"
+                    className="py-2 px-2 text-left font-bold text-slate-700 whitespace-nowrap sticky left-0 bg-slate-50 z-30"
                     style={{ minWidth: '100px' }}
                   >
                     Half Days
@@ -394,7 +420,7 @@ const AdminMonthlyAttendance = () => {
                     return (
                       <td
                         key={user.id}
-                        className="py-2 px-2 text-center font-semibold whitespace-nowrap"
+                        className="py-2 px-2 text-center font-semibold whitespace-nowrap bg-slate-50"
                         style={{ minWidth: '100px' }}
                       >
                         <span className="bg-yellow-50 text-yellow-700 px-2 py-1 rounded-md text-xs">
@@ -404,10 +430,9 @@ const AdminMonthlyAttendance = () => {
                     );
                   })}
                 </tr>
-                {/* Absent Days Row */}
                 <tr>
                   <td
-                    className="py-2 px-2 text-left font-bold text-slate-700 whitespace-nowrap sticky left-0 bg-slate-50"
+                    className="py-2 px-2 text-left font-bold text-slate-700 whitespace-nowrap sticky left-0 bg-slate-50 z-30"
                     style={{ minWidth: '100px' }}
                   >
                     Absent
@@ -417,7 +442,7 @@ const AdminMonthlyAttendance = () => {
                     return (
                       <td
                         key={user.id}
-                        className="py-2 px-2 text-center font-semibold whitespace-nowrap"
+                        className="py-2 px-2 text-center font-semibold whitespace-nowrap bg-slate-50"
                         style={{ minWidth: '100px' }}
                       >
                         <span className="bg-red-50 text-red-700 px-2 py-1 rounded-md text-xs">
@@ -429,17 +454,16 @@ const AdminMonthlyAttendance = () => {
                 </tr>
                 <tr>
                   <td
-                    className="py-2 px-2 text-left font-bold text-slate-700 whitespace-nowrap sticky left-0 bg-slate-50"
+                    className="py-2 px-2 text-left font-bold text-slate-700 whitespace-nowrap sticky left-0 bg-slate-50 z-30"
                     style={{ minWidth: '100px' }}
                   >
                     Leave Balance
                   </td>
                   {usersList.map((user) => {
-                    const stats = calculateUserStats(user.id);
                     return (
                       <td
                         key={user.id}
-                        className="py-2 px-2 text-center font-semibold whitespace-nowrap"
+                        className="py-2 px-2 text-center font-semibold whitespace-nowrap bg-slate-50"
                         style={{ minWidth: '100px' }}
                       >
                         <span className="bg-red-50 text-red-700 px-2 py-1 rounded-md text-xs">
@@ -451,17 +475,16 @@ const AdminMonthlyAttendance = () => {
                 </tr>
                 <tr>
                   <td
-                    className="py-2 px-2 text-left font-bold text-slate-700 whitespace-nowrap sticky left-0 bg-slate-50"
+                    className="py-2 px-2 text-left font-bold text-slate-700 whitespace-nowrap sticky left-0 bg-slate-50 z-30"
                     style={{ minWidth: '100px' }}
                   >
                     LOP
                   </td>
                   {usersList.map((user) => {
-                    const stats = calculateUserStats(user.id);
                     return (
                       <td
                         key={user.id}
-                        className="py-2 px-2 text-center font-semibold whitespace-nowrap"
+                        className="py-2 px-2 text-center font-semibold whitespace-nowrap bg-slate-50"
                         style={{ minWidth: '100px' }}
                       >
                         <span className="bg-red-50 text-red-700 px-2 py-1 rounded-md text-xs">

@@ -25,7 +25,7 @@ const Header = ({ user, sidebarOpen, setSidebarOpen }) => {
         <img
           src={iArtLogo}
           alt="App Logo"
-          className="w-14 h-14 object-contain" // 👈 Larger logo size
+          className="w-25 h-25 object-contain" // 👈 Larger logo size
         />
       </div>
 
