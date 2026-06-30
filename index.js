@@ -6,6 +6,7 @@ import attendanceRoutes from "./routes/attendanceRoutes.js";
 import leaveRoutes from "./routes/leaveRoutes.js";
 import calendarRoutes from "./routes/calendarRoutes.js";
 import mailRoutes from "./routes/mailRoutes.js";
+import notificationRoutes from "./routes/notificationRoutes.js";
 import cors from "cors";
 
 dotenv.config();
@@ -16,12 +17,14 @@ app.use(cors());
 app.use(express.json());
 
 import "./cron/leaveCalculator.js";
+import "./cron/Attendanceremindercron.js";
 // routes
 app.use("/api/auth", authRoutes);
 app.use("/api/attendance", attendanceRoutes);
 app.use("/api/leave", leaveRoutes);
 app.use("/api/calendar", calendarRoutes);
 app.use("/api/mail", mailRoutes);
+app.use("/api/notifications", notificationRoutes);
 app.get("/", (req, res) => res.send("Attendance Portal API is running"));
 
 const PORT = process.env.PORT_KEY || 5000;

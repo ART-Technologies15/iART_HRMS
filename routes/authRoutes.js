@@ -1,5 +1,5 @@
 import express from "express";
-import { register, login, getAllUsers, deleteUser, updateUser, toggleUserStatus } from "../controller/authController.js";
+import { register, login, getAllUsers, getProfile, deleteUser, updateUser, toggleUserStatus } from "../controller/authController.js";
 import { protect } from "../middleware/authMiddleware.js";
 import multer from "multer";
 
@@ -19,6 +19,7 @@ const uploadFields = upload.fields([
 router.post("/register", protect, uploadFields, register);
 router.post("/login", login);
 router.get("/getAllUsers", protect, getAllUsers);
+router.get("/getProfile", protect, getProfile);
 router.delete("/:id", protect, deleteUser);
 router.put("/:id", protect, uploadFields, updateUser);
 router.patch("/users/:userId/status", protect, toggleUserStatus);

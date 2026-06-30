@@ -3,6 +3,16 @@ import bcrypt from "bcryptjs";
 
 const userSchema = new mongoose.Schema(
   {
+    employeeId: {
+      type: String,
+      required: true,
+      unique: true,
+      uppercase: true,
+      trim: true,
+      index: true,           // For faster lookups
+      // match: [/^EMP[A-Z0-9-]{3,}$/, "Invalid Employee ID format. Example: EMP001 or EMP-2025-001"],
+    },
+
     name: { type: String, required: true },
 
     profilePhoto: {

@@ -698,7 +698,14 @@ export const getAttendanceByDateForAdmin = async (req, res) => {
 
     const isHoliday = await isNonWorkingDay(dayStart);
 
-    const users = await User.find({ isActive: true }, "_id name email").lean();
+    const users = await User.find(
+      {
+        isActive: true,
+        role: { $ne: "admin" }, // Exclude admins
+      },
+      "_id name email role"
+    ).lean();
+
     const userIds = users.map((u) => u._id);
 
     const attendanceDocs = await Attendance.find({
@@ -735,31 +742,51 @@ export const getAttendanceByDateForAdmin = async (req, res) => {
       // ----- HAS ATTENDANCE -----
       if (record?.punchIn) {
         const punchIn = new Date(record.punchIn);
-        const punchOut = record.punchOut ? new Date(record.punchOut) : null;
 
-        const totalSeconds = record.totalHours || 0;
-        let status = "Absent";
+        // If user hasn't punched out yet, calculate till current time
+        const punchOut = record.punchOut
+          ? new Date(record.punchOut)
+          : new Date();
 
-        if (totalSeconds > 0) {
-          const percent = (totalSeconds / WORK_SECONDS) * 100;
+        let totalSeconds;
 
-          if (percent < 40) status = "Absent";
-          else if (percent < 81.25) status = "Half Day";
-          else status = "Present";
+        if (record.punchOut) {
+          // Use stored value after punch out
+          totalSeconds = record.totalHours || 0;
+        } else {
+          // Live calculation
+          totalSeconds = Math.max(
+            0,
+            Math.floor((punchOut.getTime() - punchIn.getTime()) / 1000)
+          );
+        }
+
+        const percent = Number(
+          ((totalSeconds / WORK_SECONDS) * 100).toFixed(2)
+        );
+
+        let status;
+
+        if (percent < 40) {
+          status = "Absent";
+        } else if (percent < 81.25) {
+          status = "Half Day";
+        } else {
+          status = "Present";
         }
 
         const punchInIST = moment(punchIn).utcOffset("+05:30");
         const mins = punchInIST.hours() * 60 + punchInIST.minutes();
-        const onTime = mins <= 600; // 10:00 AM IST cutoff
 
         return {
           userId: u._id,
           name: u.name,
           punchIn,
-          punchOut,
+          punchOut: record.punchOut ? new Date(record.punchOut) : "",
           totalHours: totalSeconds,
           status,
-          onTime,
+          onTime: mins <= 600,
+          percent,
         };
       }
 
@@ -881,6 +908,178 @@ export const getTodayAttendanceStatus = async (req, res) => {
   }
 };
 
+// export const getMonthlyAttendanceForAdmin = async (req, res) => {
+//   try {
+//     if (req.user.role !== "admin") {
+//       return res.status(403).json({
+//         success: false,
+//         message: "Only admins can view monthly attendance.",
+//       });
+//     }
+
+//     let { month, year } = req.query;
+
+//     if (!month || !year) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Month and year are required. Example: ?month=9&year=2024",
+//       });
+//     }
+
+//     month = Number(month) - 1;
+//     year = Number(year);
+
+//     const startOfMonth = moment.tz({ year, month, day: 1 }, "Asia/Kolkata");
+//     const endOfMonth = startOfMonth.clone().endOf("month");
+//     const totalDays = endOfMonth.date();
+
+//     const users = await User.find({
+//       isActive: true,
+//       role: { $ne: "admin" },
+//     }).lean();
+
+//     const attendanceDocs = await Attendance.find({
+//       userId: { $in: users.map(u => u._id) },
+//     }).lean();
+
+//     const attendanceMap = new Map();
+//     attendanceDocs.forEach(doc => {
+//       attendanceMap.set(String(doc.userId), doc.records || []);
+//     });
+
+//     const holidayCache = new Map();
+//     for (let d = 1; d <= totalDays; d++) {
+//       const date = moment.tz({ year, month, day: d }, "Asia/Kolkata");
+//       holidayCache.set(
+//         date.format("YYYY-MM-DD"),
+//         await isNonWorkingDay(date.toDate())
+//       );
+//     }
+
+//     const WORK_SECONDS = 8 * 3600;
+//     const result = [];
+
+//     // ---------- PASS 1: build normal response ----------
+//     for (let d = 1; d <= totalDays; d++) {
+//       const date = moment.tz({ year, month, day: d }, "Asia/Kolkata");
+//       const dateKey = date.format("YYYY-MM-DD");
+//       const isHoliday = holidayCache.get(dateKey);
+
+//       const row = {
+//         date: dateKey,
+//         day: date.format("dddd"),
+//         isHoliday,
+//         users: [],
+//       };
+
+//       for (const u of users) {
+//         const records = attendanceMap.get(String(u._id)) || [];
+//         const record = records.find(r =>
+//           moment(r.date).isSame(date, "day")
+//         );
+
+//         if (isHoliday) {
+//           row.users.push({
+//             userId: u._id,
+//             name: u.name,
+//             lop: u.leaveInfo?.extraLOP,
+//             punchIn: "",
+//             punchOut: "",
+//             totalHours: 0,
+//             status: "Holiday",
+//             onTime: null,
+//           });
+//           continue;
+//         }
+
+//         if (record?.punchIn) {
+//           const punchIn = moment(record.punchIn).tz("Asia/Kolkata");
+//           const punchOut = record.punchOut
+//             ? moment(record.punchOut).tz("Asia/Kolkata")
+//             : "";
+
+//           const totalSec = record.totalHours || 0;
+
+//           let status = "Absent";
+//           if (totalSec > 0) {
+//             const percent = (totalSec / WORK_SECONDS) * 100;
+//             if (percent < 40) status = "Absent";
+//             else if (percent < 81.25) status = "Half Day";
+//             else status = "Present";
+//           }
+
+//           const mins = punchIn.hours() * 60 + punchIn.minutes();
+
+//           row.users.push({
+//             userId: u._id,
+//             name: u.name,
+//             lop: u.leaveInfo?.extraLOP,
+//             leaveBalance: u.leaveInfo?.balance,
+//             punchIn: punchIn.toDate(),
+//             punchOut: punchOut ? punchOut.toDate() : "",
+//             totalHours: totalSec,
+//             status,
+//             onTime: mins <= 600,
+//           });
+//         } else {
+//           row.users.push({
+//             userId: u._id,
+//             name: u.name,
+//             lop: u.leaveInfo?.extraLOP,
+//             leaveBalance: u.leaveInfo?.balance,
+//             punchIn: "",
+//             punchOut: "",
+//             totalHours: 0,
+//             status: "Absent",
+//             onTime: null,
+//           });
+//         }
+//       }
+
+//       result.push(row);
+//     }
+
+//     // ---------- PASS 2: sandwich rule (NO RESPONSE CHANGE) ----------
+//     for (let d = 0; d < result.length; d++) {
+//       if (!result[d].isHoliday) continue;
+
+//       let prev = d - 1;
+//       while (prev >= 0 && result[prev].isHoliday) prev--;
+
+//       let next = d + 1;
+//       while (next < result.length && result[next].isHoliday) next++;
+
+//       if (prev < 0 || next >= result.length) continue;
+
+//       for (let u = 0; u < result[d].users.length; u++) {
+//         if (
+//           result[prev].users[u].status === "Absent" &&
+//           result[next].users[u].status === "Absent"
+//         ) {
+//           // Only change status value, nothing else
+//           result[d].users[u].status = "Absent";
+//         }
+//       }
+//     }
+
+//     return res.status(200).json({
+//       success: true,
+//       month: month + 1,
+//       year,
+//       totalDays,
+//       data: result,
+//     });
+
+//   } catch (err) {
+//     console.error("Error in getMonthlyAttendanceForAdmin:", err);
+//     return res.status(500).json({
+//       success: false,
+//       message: "Server error while fetching monthly attendance.",
+//       error: err.message,
+//     });
+//   }
+// };
+
 export const getMonthlyAttendanceForAdmin = async (req, res) => {
   try {
     if (req.user.role !== "admin") {
@@ -920,6 +1119,19 @@ export const getMonthlyAttendanceForAdmin = async (req, res) => {
       attendanceMap.set(String(doc.userId), doc.records || []);
     });
 
+    // Normalize each user's joining date to start-of-day in IST, once.
+    // No joiningDate on record => treat as already-joined (never shows
+    // "Not Joined"), so older users without the field aren't affected.
+    const joiningDateMap = new Map();
+    users.forEach(u => {
+      joiningDateMap.set(
+        String(u._id),
+        u.joiningDate
+          ? moment.tz(u.joiningDate, "Asia/Kolkata").startOf("day")
+          : null
+      );
+    });
+
     const holidayCache = new Map();
     for (let d = 1; d <= totalDays; d++) {
       const date = moment.tz({ year, month, day: d }, "Asia/Kolkata");
@@ -950,6 +1162,23 @@ export const getMonthlyAttendanceForAdmin = async (req, res) => {
         const record = records.find(r =>
           moment(r.date).isSame(date, "day")
         );
+
+        // ── Not joined yet — takes priority over holiday/attendance ──
+        const joiningDate = joiningDateMap.get(String(u._id));
+        if (joiningDate && date.isBefore(joiningDate, "day")) {
+          row.users.push({
+            userId: u._id,
+            name: u.name,
+            lop: u.leaveInfo?.extraLOP,
+            leaveBalance: u.leaveInfo?.balance,
+            punchIn: "",
+            punchOut: "",
+            totalHours: 0,
+            status: "Not Joined",
+            onTime: null,
+          });
+          continue;
+        }
 
         if (isHoliday) {
           row.users.push({
@@ -1052,5 +1281,3 @@ export const getMonthlyAttendanceForAdmin = async (req, res) => {
     });
   }
 };
-
-

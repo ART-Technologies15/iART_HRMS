@@ -159,7 +159,54 @@ export const register = async (req, res) => {
       passbookFile,
     };
 
+    // Generate Employee ID using aggregation
+    const lastEmployee = await User.aggregate([
+      {
+        $match: {
+          employeeId: {
+            $exists: true,
+            $ne: null,
+            $regex: /^IART\d+$/,
+          },
+        },
+      },
+      {
+        $addFields: {
+          employeeNumber: {
+            $toInt: {
+              $substr: [
+                "$employeeId",
+                4, // Skip "IART"
+                {
+                  $subtract: [
+                    { $strLenCP: "$employeeId" },
+                    4,
+                  ],
+                },
+              ],
+            },
+          },
+        },
+      },
+      {
+        $sort: {
+          employeeNumber: -1,
+        },
+      },
+      {
+        $limit: 1,
+      },
+    ]);
+
+    const nextEmployeeNumber =
+      lastEmployee.length > 0
+        ? lastEmployee[0].employeeNumber + 1
+        : 1;
+
+    const employeeId = `IART${String(nextEmployeeNumber).padStart(3, "0")}`;
+
     const user = await User.create({
+      employeeId,
       name,
       profilePhoto,
       email,
@@ -238,7 +285,7 @@ export const login = async (req, res) => {
     }
 
     const token = jwt.sign({ id: user._id }, process.env.SECRET_KEY, {
-      expiresIn: "1d",
+      expiresIn: "7d",
     });
 
     const { passwordHash, ...userData } = user.toObject();
@@ -343,6 +390,32 @@ export const getAllUsers = async (req, res) => {
   }
 };
 
+export const getProfile = async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    const profile = await User.findById(userId).select("-passwordHash");
+
+    if (!profile) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      user: profile,
+    });
+  } catch (err) {
+    console.error("Error fetching profile:", err);
+    res.status(500).json({
+      success: false,
+      message: "Server error while fetching profile",
+      error: err.message,
+    });
+  }
+};
 export const deleteUser = async (req, res) => {
   try {
     if (req.user.role !== "admin") {
