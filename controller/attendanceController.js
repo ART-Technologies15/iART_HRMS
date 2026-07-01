@@ -337,7 +337,7 @@ export const getAttendanceRecord = async (req, res) => {
     const { userId } = req.params;
     let { month, year, startDate, endDate } = req.query;
 
-    // auth: admin or self
+    // Authorization
     if (req.user.role !== "admin" && req.user._id.toString() !== userId) {
       return res.status(403).json({
         success: false,
@@ -353,7 +353,7 @@ export const getAttendanceRecord = async (req, res) => {
     if (hasRange) {
       rangeStart = startDate
         ? moment(startDate).utcOffset("+05:30").startOf("day")
-        : moment().utcOffset("+05:30").startOf("month");
+        : nowIST.clone().startOf("month");
 
       rangeEnd = endDate
         ? moment(endDate).utcOffset("+05:30").endOf("day")
@@ -366,95 +366,106 @@ export const getAttendanceRecord = async (req, res) => {
         .utcOffset("+05:30")
         .startOf("month");
 
-      const reqEndFull = reqStart.clone().endOf("month");
-      const todayIST = nowIST.clone().startOf("day");
+      const reqEnd = reqStart.clone().endOf("month");
+      const today = nowIST.clone().startOf("day");
 
-      if (reqStart.isAfter(todayIST, "day")) return res.status(200).json([]);
+      if (reqStart.isAfter(today, "day")) {
+        return res.status(200).json([]);
+      }
 
       rangeStart = reqStart;
-      rangeEnd = reqEndFull.isAfter(todayIST) ? todayIST : reqEndFull;
+      rangeEnd = reqEnd.isAfter(today) ? today : reqEnd;
     }
 
     const days = listDays(rangeStart.toDate(), rangeEnd.toDate());
 
-    // FETCH APPROVED LEAVES
+    // -------------------------
+    // Approved Leaves
+    // -------------------------
     const approvedLeaves = await Leave.find({
       userId,
       status: "approved",
-      "leaveDays.date": { $gte: rangeStart.toDate(), $lte: rangeEnd.toDate() },
+      "leaveDays.date": {
+        $gte: rangeStart.toDate(),
+        $lte: rangeEnd.toDate(),
+      },
     }).lean();
 
     const leaveSet = new Set();
-    approvedLeaves.forEach((l) => {
-      l.leaveDays.forEach((d) => {
-        leaveSet.add(moment(d.date).utcOffset("+05:30").format("YYYY-MM-DD"));
+
+    approvedLeaves.forEach((leave) => {
+      leave.leaveDays.forEach((d) => {
+        leaveSet.add(
+          moment(d.date).utcOffset("+05:30").format("YYYY-MM-DD")
+        );
       });
     });
 
-    // FETCH HOLIDAYS
+    // -------------------------
+    // Holidays
+    // -------------------------
     const calendarDocs = await Calendar.find({
       year: { $in: [rangeStart.year(), rangeEnd.year()] },
       month: { $in: [rangeStart.month() + 1, rangeEnd.month() + 1] },
     }).lean();
 
-    // Build map: "YYYY-MM-DD" → "Reason"
     const holidayMap = new Map();
+
     calendarDocs.forEach((cal) => {
       cal.nonWorkingDays.forEach((d) => {
-        const dateKey = moment({
+        const key = moment({
           year: cal.year,
           month: cal.month - 1,
           day: d.day,
         })
           .utcOffset("+05:30")
           .format("YYYY-MM-DD");
-        holidayMap.set(dateKey, d.reason);
+
+        holidayMap.set(key, d.reason);
       });
     });
 
-    //FETCH ATTENDANCE
+    // -------------------------
+    // Attendance
+    // -------------------------
     const attDoc = await Attendance.findOne({ userId }).lean();
+
+    const attendanceId = attDoc?._id || null;
+
     const recMap = new Map();
+
     if (attDoc?.records?.length) {
       attDoc.records.forEach((r) => {
-        const key = moment(r.date).utcOffset("+05:30").format("YYYY-MM-DD");
+        const key = moment(r.date)
+          .utcOffset("+05:30")
+          .format("YYYY-MM-DD");
+
         recMap.set(key, r);
       });
     }
 
     const todayKey = nowIST.format("YYYY-MM-DD");
+    const WORK_SECONDS = 8 * 3600;
 
     const data = days
       .map((d) => {
-        const dayKey = moment(d).utcOffset("+05:30").format("YYYY-MM-DD");
-        const dayNum = parseInt(moment(d).utcOffset("+05:30").format("D"), 10);
+        const dayKey = moment(d)
+          .utcOffset("+05:30")
+          .format("YYYY-MM-DD");
 
         const rec = recMap.get(dayKey);
         const hasAttendance = !!rec;
 
-        // 1. HOLIDAY CHECK
-        if (holidayMap.has(dayKey)) {
-          return {
-            date: dayKey,
-            punchIn: "",
-            punchOut: "",
-            totalHours: 0,
-            status: `Holiday (${holidayMap.get(dayKey)})`,
-            onTime: null,
-          };
-        }
-
-        // Determine total work time if attendance exists
         let totalSeconds = 0;
-        let punchIn, punchOut;
 
         if (hasAttendance) {
-          punchIn = rec.punchIn ? new Date(rec.punchIn) : null;
-          punchOut = rec.punchOut ? new Date(rec.punchOut) : null;
+          const punchIn = rec.punchIn ? new Date(rec.punchIn) : null;
+          const punchOut = rec.punchOut ? new Date(rec.punchOut) : null;
 
           if (punchIn && punchOut) {
             totalSeconds =
-              rec.totalHours || Math.floor((punchOut - punchIn) / 1000);
+              rec.totalHours ||
+              Math.floor((punchOut - punchIn) / 1000);
           } else if (punchIn && dayKey === todayKey) {
             totalSeconds = Math.max(
               0,
@@ -462,8 +473,6 @@ export const getAttendanceRecord = async (req, res) => {
             );
           }
         }
-
-        const WORK_SECONDS = 8 * 3600;
 
         let attendanceStatus = "Absent";
 
@@ -479,43 +488,62 @@ export const getAttendanceRecord = async (req, res) => {
           }
         }
 
-        // 2. LEAVE CHECK
-        if (leaveSet.has(dayKey)) {
-          if (!hasAttendance) {
-            return {
-              date: dayKey,
-              punchIn: "",
-              punchOut: "",
-              totalHours: 0,
-              status: "On Leave",
-              onTime: null,
-            };
-          }
-          // Leave + Attendance = treat as Present
-          return {
-            date: dayKey,
-            punchIn: rec.punchIn,
-            punchOut: rec.punchOut,
-            totalHours: totalSeconds,
-            status: attendanceStatus,
-            onTime: getOnTimeStatus(rec.punchIn),
-          };
-        }
-
-        // 3. ATTENDANCE (NO LEAVE)
+        // ===================================
+        // 1. Attendance always has priority
+        // ===================================
         if (hasAttendance) {
           return {
+            attendanceId,
+            recordId: rec._id,
             date: dayKey,
             punchIn: rec.punchIn,
             punchOut: rec.punchOut,
             totalHours: totalSeconds,
             status: attendanceStatus,
             onTime: getOnTimeStatus(rec.punchIn),
+            holiday: holidayMap.get(dayKey) || null,
+            onLeave: leaveSet.has(dayKey),
           };
         }
 
-        // 4. DEFAULT → ABSENT
+        // ===================================
+        // 2. Leave
+        // ===================================
+        if (leaveSet.has(dayKey)) {
+          return {
+            attendanceId,
+            recordId: null,
+            date: dayKey,
+            punchIn: "",
+            punchOut: "",
+            totalHours: 0,
+            status: "On Leave",
+            onTime: null,
+          };
+        }
+
+        // ===================================
+        // 3. Holiday / Weekend
+        // ===================================
+        if (holidayMap.has(dayKey)) {
+          return {
+            attendanceId,
+            recordId: null,
+            date: dayKey,
+            punchIn: "",
+            punchOut: "",
+            totalHours: 0,
+            status: `Holiday (${holidayMap.get(dayKey)})`,
+            onTime: null,
+          };
+        }
+
+        // ===================================
+        // 4. Absent
+        // ===================================
         return {
+          attendanceId,
+          recordId: null,
           date: dayKey,
           punchIn: "",
           punchOut: "",
@@ -526,10 +554,11 @@ export const getAttendanceRecord = async (req, res) => {
       })
       .sort((a, b) => new Date(b.date) - new Date(a.date));
 
-    res.status(200).json(data);
+    return res.status(200).json(data);
   } catch (err) {
     console.error("Error in getAttendanceRecord:", err);
-    res.status(500).json({
+
+    return res.status(500).json({
       success: false,
       message: "Server error while fetching attendance records.",
       error: err.message,
