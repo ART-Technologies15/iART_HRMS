@@ -461,36 +461,36 @@ const LeavesPage = () => {
       )}
 
       {role !== "admin" && (
-  <div className="flex flex-row gap-4">
-    <div className="bg-amber-100 rounded-xl shadow border p-4 w-full max-w-sm">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm text-gray-500">Leave Balance</p>
-          <p className="text-2xl font-semibold text-gray-800">
-            {leaveBalance}
-          </p>
-        </div>
-        <div className="text-xs text-gray-500 text-right">
-          Last updated <br /> {lastUpdated}
-        </div>
-      </div>
-    </div>
+        <div className="flex flex-row gap-4">
+          <div className="bg-amber-100 rounded-xl shadow border p-4 w-full max-w-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500">Leave Balance</p>
+                <p className="text-2xl font-semibold text-gray-800">
+                  {leaveBalance}
+                </p>
+              </div>
+              <div className="text-xs text-gray-500 text-right">
+                Last updated <br /> {lastUpdated}
+              </div>
+            </div>
+          </div>
 
-    <div className="bg-amber-100 rounded-xl shadow border p-4 w-full max-w-sm">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm text-gray-500">LOP  (Previous Month)</p>
-          <p className="text-2xl font-semibold text-gray-800">
-            {lop}
-          </p>
+          <div className="bg-amber-100 rounded-xl shadow border p-4 w-full max-w-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500">LOP (Previous Month)</p>
+                <p className="text-2xl font-semibold text-gray-800">
+                  {lop}
+                </p>
+              </div>
+              <div className="text-xs text-gray-500 text-right">
+                Last updated <br /> {lastUpdated}
+              </div>
+            </div>
+          </div>
         </div>
-        <div className="text-xs text-gray-500 text-right">
-          Last updated <br /> {lastUpdated}
-        </div>
-      </div>
-    </div>
-  </div>
-)}
+      )}
 
 
       {/* Table */}

@@ -1,5 +1,5 @@
 import React from "react";
-import { Phone, Mail, MapPin, Briefcase, UserCircle, Cake, CalendarDays } from "lucide-react";
+import { Phone, Mail, MapPin, Briefcase, UserCircle, Cake, CalendarDays, IdCard } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
 const getInitials = (name = "") =>
@@ -60,13 +60,17 @@ const PhoneBookCard = ({ user, onClick }) => {
             <UserCircle size={16} className="shrink-0" />
             <span className="truncate">{user.name}</span>
           </span>
+          {user.employeeId && (
+            <span className="text-xs px-2 py-0.5 rounded-full font-medium shrink-0 bg-indigo-50 text-indigo-600 border border-indigo-100">
+              {user.employeeId}
+            </span>
+          )}
           {user.isActive !== undefined && (
             <span
-              className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${
-                user.isActive
+              className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${user.isActive
                   ? "bg-green-100 text-green-700"
                   : "bg-gray-100 text-gray-600"
-              }`}
+                }`}
             >
               {user.isActive ? "Active" : "Inactive"}
             </span>

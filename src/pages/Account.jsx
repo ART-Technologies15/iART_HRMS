@@ -202,7 +202,7 @@ const Account = () => {
   const [formData, setFormData] = useState({
     name: "", email: "", role: "", mobile: "", alternateMobile: "",
     address: "", department: "", designation: "", pan: "", aadhaar: "",
-    accountNumber: "", ifsc: "", bankName: "", dateOfBirth: "", joiningDate: "",
+    accountNumber: "", ifsc: "", bankName: "", dateOfBirth: "", joiningDate: "", employeeId: "",
   });
 
   const [selectedFiles, setSelectedFiles] = useState({
@@ -252,6 +252,7 @@ const Account = () => {
       joiningDate: user.joiningDate
         ? new Date(user.joiningDate).toISOString().split("T")[0]
         : "",
+      employeeId: user.employeeId || "",
     });
   }, [user]);
 
@@ -398,6 +399,7 @@ const Account = () => {
       joiningDate: user.joiningDate
         ? new Date(user.joiningDate).toISOString().split("T")[0]
         : "",
+      employeeId: user.employeeId || "",
     });
 
     setSelectedFiles({
@@ -559,6 +561,7 @@ const Account = () => {
               </div>
 
               {/* User Info */}
+              {/* User Info */}
               <div className="min-w-0">
                 <h2 className="break-words text-lg sm:text-xl font-semibold text-gray-900">
                   {formData.name || "—"}
@@ -568,13 +571,22 @@ const Account = () => {
                   {formData.email}
                 </p>
 
-                <div className="mt-2 flex justify-center sm:justify-start">
+                <div className="mt-2 flex flex-wrap justify-center gap-2 sm:justify-start">
                   <span
                     className="rounded-full border border-blue-100 bg-blue-50
-            px-3 py-1 text-xs font-medium capitalize text-blue-600"
+        px-3 py-1 text-xs font-medium capitalize text-blue-600"
                   >
                     {formData.role}
                   </span>
+
+                  {formData.employeeId && (
+                    <span
+                      className="rounded-full border border-gray-200 bg-gray-50
+          px-3 py-1 text-xs font-medium text-gray-600"
+                    >
+                      ID: {formData.employeeId}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>

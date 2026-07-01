@@ -3,6 +3,7 @@ import { Search, Calendar, Download } from "lucide-react";
 import CustomTable from "../components/CustomTable";
 import { getUserAttendance } from "../api/attendaceApi";
 import { useAuth } from "../context/AuthContext";
+import RegularizationModal from "../components/RegularizationModal";
 
 const AttendanceReport = () => {
   const [search, setSearch] = useState("");
@@ -12,16 +13,45 @@ const AttendanceReport = () => {
   const { user } = useAuth();
   const userId = user?._id;
 
+  // ── Regularization modal state ──
+  const [regModalOpen, setRegModalOpen] = useState(false);
+  const [selectedRow, setSelectedRow] = useState(null);
+
   const handleRegularization = (row) => {
-    // Open dialog, navigate, or call API
-    console.log("Regularization for:", row);
+    setSelectedRow(row);
+    setRegModalOpen(true);
+  };
 
-    // Example:
-    // setSelectedAttendance(row);
-    // setOpenRegularizationDialog(true);
+  const closeRegModal = () => {
+    setRegModalOpen(false);
+    setSelectedRow(null);
+  };
 
-    // OR
-    // navigate(`/attendance/regularization/${row.id}`);
+  const today = new Date();
+  const currentDay = today.getDate();
+  const currentMonth = today.getMonth(); // 0-11
+  const currentYear = today.getFullYear();
+
+  const isRegularizationWindowOpen = currentDay >= 26 && currentDay <= 29;
+
+  const nextWindowText =
+    "Regularization requests are available from the 26th to the 29th of every month, and only for attendance within the current month.";
+
+  // row.date comes as "YYYY-MM-DD" from the list API
+  const isRowInCurrentMonth = (dateStr) => {
+    if (!dateStr) return false;
+    const d = new Date(dateStr);
+    if (isNaN(d)) return false;
+    return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+  };
+
+  const canRegularizeRow = (row) =>
+    isRegularizationWindowOpen && isRowInCurrentMonth(row.date);
+
+  const statusBadgeCls = {
+    Pending: "bg-amber-100 text-amber-700",
+    Approved: "bg-green-100 text-green-700",
+    Rejected: "bg-red-100 text-red-700",
   };
 
   const columns = [
@@ -45,14 +75,50 @@ const AttendanceReport = () => {
     {
       label: "Action",
       accessor: "action",
-      render: (_, row) => (
-        <button
-          onClick={() => handleRegularization(row)}
-          className="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-xs font-medium rounded-lg transition cursor-pointer"
-        >
-          Add Regularization
-        </button>
-      ),
+      render: (_, row) => {
+        const regStatus = row.regularization?.status; // "Pending" | "Approved" | "Rejected" | undefined
+
+        // Already decided — show a read-only badge, no button at all.
+        if (row.hasRegularization && (regStatus === "Approved" || regStatus === "Rejected")) {
+          return (
+            <span
+              className={`px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap ${statusBadgeCls[regStatus]}`}
+            >
+              {regStatus}
+            </span>
+          );
+        }
+
+        const isAllowed = canRegularizeRow(row);
+        const outOfMonth = isRegularizationWindowOpen && !isRowInCurrentMonth(row.date);
+
+        return (
+          <button
+            onClick={() => {
+              if (isAllowed) {
+                handleRegularization(row);
+              }
+            }}
+            disabled={!isAllowed}
+            className={`px-3 py-1.5 text-white text-xs font-medium rounded-lg transition
+            ${!isAllowed
+                ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                : row.hasRegularization
+                  ? "bg-amber-500 hover:bg-amber-600 cursor-pointer"
+                  : "bg-blue-500 hover:bg-blue-600 cursor-pointer"
+              }`}
+            title={
+              !isRegularizationWindowOpen
+                ? "Regularization requests can only be submitted from the 26th to the 29th of each month."
+                : outOfMonth
+                  ? "Only attendance within the current month can be regularized."
+                  : ""
+            }
+          >
+            {row.hasRegularization ? "Edit Regularization" : "Add Regularization"}
+          </button>
+        );
+      },
     },
   ];
 
@@ -88,6 +154,8 @@ const AttendanceReport = () => {
         workingHours: item.totalHours ? formatSeconds(item.totalHours) : "0s",
         status: item.status,
         onTime: item.onTime,
+        hasRegularization: item.hasRegularization,
+        regularization: item.regularization || null,
       }));
 
       setAttendanceData(formatted);
@@ -183,6 +251,19 @@ const AttendanceReport = () => {
         </div>
       </div>
 
+      {!isRegularizationWindowOpen && (
+        <div className="flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+          <div>
+            <p className="text-sm font-semibold text-amber-800">
+              Regularization Window Closed
+            </p>
+            <p className="text-sm text-amber-700 mt-1">
+              {nextWindowText}
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* ===== Table Section ===== */}
       <div className="bg-white rounded-2xl shadow p-4 border border-gray-100 overflow-x-auto">
         <div className="min-w-[600px]">
@@ -194,6 +275,15 @@ const AttendanceReport = () => {
           />
         </div>
       </div>
+
+      <RegularizationModal
+        open={regModalOpen}
+        mode={selectedRow?.hasRegularization ? "edit" : "create"}
+        attendanceRow={selectedRow}
+        regularization={selectedRow?.regularization || null}
+        onClose={closeRegModal}
+        onSuccess={fetchAttendance}
+      />
     </div>
   );
 };

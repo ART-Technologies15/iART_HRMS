@@ -17,6 +17,7 @@ import YearCalendar from "./pages/Calendar";
 import DashboardRouter from "./routes/DashboardRouter";
 import AdminMonthlyAttendance from "./pages/AdminMonthlyAttendance";
 import Notification from "./pages/Notification";
+import Regularization from "./pages/Regularization";
 
 const App = () => {
   return (
@@ -94,6 +95,14 @@ const App = () => {
             element={
               <AdminRoute>
                 <Notification />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/regularization"
+            element={
+              <AdminRoute>
+                <Regularization />
               </AdminRoute>
             }
           />

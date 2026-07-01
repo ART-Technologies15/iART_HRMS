@@ -165,6 +165,7 @@ const UserDetailsModal = ({ open, onClose, user }) => {
 
           {/* Employment */}
           <Card title="Employment">
+            <Row label="Employee ID" value={user.employeeId} />
             <Row label="Department" value={user.department} />
             <Row label="Designation" value={user.designation} />
 

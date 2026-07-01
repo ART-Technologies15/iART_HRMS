@@ -9,6 +9,14 @@ export const AdminRoute = ({ children }) => {
   return <Navigate to="/dashboard" replace />;
 };
 
+export const HrRoute = ({ children }) => {
+  const user = JSON.parse(localStorage.getItem("user"));
+  if (user?.role === "hr") return children;
+
+  toast.error("Access denied. HR only.");
+  return <Navigate to="/dashboard" replace />;
+};
+
 export const EmployeeRoute = ({ children }) => {
   const user = JSON.parse(localStorage.getItem("user"));
   if (user?.role !== "admin") return children;

@@ -11,13 +11,15 @@ import {
   Calendar,
   Logs,
   CalendarDays,
-  Megaphone
+  Megaphone,
+  LucideCalendarCheck2
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
 const Sidebar = ({ sidebarOpen, setSidebarOpen, user }) => {
   const { logout } = useAuth();
   const isAdmin = user?.role === "admin";
+  const isHr = user?.role === "hr";
 
   const linkClasses = ({ isActive }) =>
     `flex items-center gap-3 px-8 py-3 font-medium ${isActive ? "bg-[#4EA3F7] text-white" : "text-gray-600 hover:bg-gray-50"
@@ -86,6 +88,17 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, user }) => {
               <BarChart2 className="w-5 h-5" /> Attendance Report
             </NavLink> */}
           </>
+        )}
+
+        {/* HR and Admin only */}
+        {(isAdmin) && (
+          <NavLink
+            to="/regularization"
+            onClick={() => setSidebarOpen(false)}
+            className={linkClasses}
+          >
+            <LucideCalendarCheck2 className="w-5 h-5" /> Regularization
+          </NavLink>
         )}
 
         {/* Employee only */}

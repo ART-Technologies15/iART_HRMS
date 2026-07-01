@@ -66,3 +66,42 @@ export const getAdminMonthlyAttendance = async (month, year) => {
   });
   return res.data;
 };
+
+// ----------------------------------Regularization API's-------------------------------------
+
+export const createRegularizationAPI = async (payload) => {
+  const res = await axiosInstance.post(`/attendance/regularization`, payload);
+  return res.data;
+};
+
+export const updateRegularizationAPI = async (regularizationId, payload) => {
+  const res = await axiosInstance.put(
+    `/attendance/regularization/${regularizationId}`,
+    payload
+  );
+  return res.data;
+};
+
+export const updateRegularizationByAdminAPI = async (
+  regularizationId,
+  payload
+) => {
+  const res = await axiosInstance.put(
+    `/attendance/regularization/${regularizationId}/review`,
+    payload
+  );
+  return res.data;
+};
+
+export const getAllRegularizationAPI = async (params = {}) => {
+  const res = await axiosInstance.get(`/attendance/regularization`, { params });
+  return res.data;
+};
+
+export const getRegularizationByIdAPI = async (regularizationId) => {
+  const res = await axiosInstance.get(
+    `/attendance/regularization/${regularizationId}`
+  );
+  return res.data;
+};
+
