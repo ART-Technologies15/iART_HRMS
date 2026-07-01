@@ -33,13 +33,14 @@ const PhoneBookCard = ({ user, onClick }) => {
   return (
     <div
       onClick={onClick}
-      className="flex gap-4 p-4 bg-white rounded-xl shadow-sm hover:shadow-md border border-gray-100 transition cursor-pointer
-                 flex-col sm:flex-row sm:items-center"
+      className="flex gap-3 sm:gap-4 p-4 bg-white rounded-xl shadow-sm hover:shadow-md border border-gray-100 transition cursor-pointer
+                 flex-col items-center text-center
+                 xs:flex-row xs:items-start xs:text-left"
     >
       {/* Avatar */}
       <div
-        className="w-16 h-16 rounded-full flex items-center justify-center text-lg font-semibold
-             bg-blue-100 text-blue-700 self-center sm:self-start overflow-hidden shrink-0"
+        className="w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center text-base sm:text-lg font-semibold
+             bg-blue-100 text-blue-700 overflow-hidden shrink-0"
       >
         {user.profilePhoto ? (
           <img
@@ -53,36 +54,43 @@ const PhoneBookCard = ({ user, onClick }) => {
       </div>
 
       {/* Info */}
-      <div className="flex-1 space-y-1 text-sm text-gray-700">
-        <div className="text-base font-semibold text-gray-900 flex items-center gap-2">
-          <UserCircle size={16} /> {user.name}
+      <div className="flex-1 min-w-0 w-full space-y-1 text-sm text-gray-700">
+        <div className="text-base font-semibold text-gray-900 flex items-center justify-center xs:justify-start gap-2 flex-wrap">
+          <span className="flex items-center gap-1.5 min-w-0">
+            <UserCircle size={16} className="shrink-0" />
+            <span className="truncate">{user.name}</span>
+          </span>
           {user.isActive !== undefined && (
-            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${user.isActive
-              ? 'bg-green-100 text-green-700'
-              : 'bg-gray-100 text-gray-600'
-              }`}>
-              {user.isActive ? 'Active' : 'Inactive'}
+            <span
+              className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${
+                user.isActive
+                  ? "bg-green-100 text-green-700"
+                  : "bg-gray-100 text-gray-600"
+              }`}
+            >
+              {user.isActive ? "Active" : "Inactive"}
             </span>
           )}
         </div>
 
-        <div className="text-gray-600 flex items-center gap-1">
-          <Briefcase size={14} /> {user.designation}
+        <div className="text-gray-600 flex items-center justify-center xs:justify-start gap-1 truncate">
+          <Briefcase size={14} className="shrink-0" />
+          <span className="truncate">{user.designation}</span>
         </div>
 
-        <div className="text-gray-600 flex items-center gap-1">
-          <CalendarDays size={14} />
-          Joined: {formatDate(user.joiningDate)}
+        <div className="text-gray-600 flex items-center justify-center xs:justify-start gap-1">
+          <CalendarDays size={14} className="shrink-0" />
+          <span className="truncate">Joined: {formatDate(user.joiningDate)}</span>
         </div>
 
-        <div className="text-gray-600 flex items-center gap-1">
-          <Cake size={14} />
-          {formatDOB(user.dateOfBirth)}
+        <div className="text-gray-600 flex items-center justify-center xs:justify-start gap-1">
+          <Cake size={14} className="shrink-0" />
+          <span className="truncate">{formatDOB(user.dateOfBirth)}</span>
         </div>
 
-        <div className="flex items-center gap-1">
-          <Phone size={14} />
-          {user.mobile}
+        <div className="flex items-center justify-center xs:justify-start gap-1 flex-wrap">
+          <Phone size={14} className="shrink-0" />
+          <span>{user.mobile}</span>
           {user.alternateMobile && loggedInUser.role === "admin" && (
             <span className="text-gray-500 text-xs">
               • {user.alternateMobile}
@@ -90,15 +98,20 @@ const PhoneBookCard = ({ user, onClick }) => {
           )}
         </div>
 
-        <div className="flex items-center gap-1 max-w-[240px] truncate">
-          <Mail size={14} /> <span className="truncate">{user.email}</span>
+        <div className="flex items-center justify-center xs:justify-start gap-1 min-w-0">
+          <Mail size={14} className="shrink-0" />
+          <span className="truncate" title={user.email}>{user.email}</span>
         </div>
 
-        <div className="flex items-center gap-1">
-          <Briefcase size={14} /> {user.department} • {user.role}
+        <div className="text-gray-600 flex items-center justify-center xs:justify-start gap-1 truncate">
+          <Briefcase size={14} className="shrink-0" />
+          <span className="truncate">
+            {user.department} • {user.role}
+          </span>
         </div>
+
         {loggedInUser.role === "admin" && (
-          <div className="flex items-center gap-1 text-gray-500 text-xs truncate max-w-[250px]">
+          <div className="flex items-center justify-center xs:justify-start gap-1 text-gray-500 text-xs min-w-0">
             <MapPin size={14} className="shrink-0" />
             <span className="truncate">{user.address}</span>
           </div>

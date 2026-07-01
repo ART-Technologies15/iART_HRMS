@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
-import { updateUser } from "../api/authApi";
+import { updateUser, getProfileAccount } from "../api/authApi";
 import { toast } from "react-toastify";
 import { Eye, EyeOff, User, Lock, Upload, ExternalLink, Pencil } from "lucide-react";
 
@@ -255,6 +255,27 @@ const Account = () => {
     });
   }, [user]);
 
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const res = await getProfileAccount();
+
+        if (res?.success) {
+          // API returns users: profile
+          const profile = res.user;
+
+          setUser(profile);
+          localStorage.setItem("user", JSON.stringify(profile));
+        }
+      } catch (error) {
+        console.error("Failed to fetch profile:", error);
+        toast.error("Failed to load profile.");
+      }
+    };
+
+    fetchProfile();
+  }, [setUser]);
+
   const onProfileChange = (e) => {
     const { name, value } = e.target;
     setFormData(p => ({ ...p, [name]: value }));
@@ -424,8 +445,9 @@ const Account = () => {
       const res = await updateUser(user._id, payload);
       if (res?.success) {
         const nextUser = { ...(user || {}), ...res.user };
-        setUser(nextUser)
-        localStorage.setItem("user", JSON.stringify(nextUser));
+        const profileRes = await getProfileAccount();
+        setUser(profileRes?.user)
+        localStorage.setItem("user", JSON.stringify(profileRes?.user));
         toast.success(res?.message || "Profile updated successfully.");
         resetForm();
         setEditMode(false);

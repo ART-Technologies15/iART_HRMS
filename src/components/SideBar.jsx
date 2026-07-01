@@ -27,7 +27,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, user }) => {
     <div
       className={`fixed md:static top-0 left-0 h-full w-64 bg-white border-r 
       border-gray-200 flex flex-col pt-6 z-30 transition-transform duration-300 
-      ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} md:translate-x-0`}
+      ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}
     >
       <h2 className="text-[#3a9ded] font-semibold text-lg mb-8 text-center">
         Welcome, {user?.name}

@@ -35,7 +35,8 @@ const Layout = () => {
   return (
     <div className="w-full flex h-screen overflow-hidden relative">
       {/* Sidebar */}
-      <div ref={sidebarRef} className="z-40">
+      <div ref={sidebarRef}
+        className="w-0 lg:w-64 flex-shrink-0">
         <Sidebar
           sidebarOpen={sidebarOpen}
           setSidebarOpen={setSidebarOpen}
