@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import Attendance from "../models/Attendance.js";
 import moment from "moment-timezone";
 import { isNonWorkingDay } from "../utils/calendarUtils.js";
@@ -5,6 +6,13 @@ import { updateMonthlySummary } from "../utils/updateMonthlySummary.js";
 import Calendar from "../models/Calendar.js";
 import User from "../models/Users.js";
 import Leave from "../models/Leaves.js"; // import Leave model
+import Regularization from "../models/Regularization.js";
+import MailService from "../services/mailService.js";
+
+const ONTIME_THRESHOLD_MINUTES = 10 * 60; // 10:00 AM / 600 mins
+
+const escapeRegex = (str) =>
+  String(str).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 export const punchIn = async (req, res) => {
   try {
@@ -311,8 +319,6 @@ export const updateAttendance = async (req, res) => {
   }
 };
 
-const ONTIME_THRESHOLD_MINUTES = 10 * 60; // 10:00 AM / 600 mins
-
 const getOnTimeStatus = (punchInDate) => {
   if (!punchInDate) return null;
 
@@ -444,6 +450,34 @@ export const getAttendanceRecord = async (req, res) => {
       });
     }
 
+    // -------------------------
+    // Regularizations (for this user, within the same range)
+    // -------------------------
+    const regularizations = await Regularization.find({
+      userId,
+      attendanceDate: {
+        $gte: rangeStart.toDate(),
+        $lte: rangeEnd.toDate(),
+      },
+    })
+      .sort({ createdAt: -1 }) // most recent first
+      .lean();
+
+    // Keep only the latest regularization per date — if an employee
+    // resubmits after a rejection, the newest request is the one
+    // that should drive the UI (Edit / status badge).
+    const regularizationMap = new Map();
+
+    regularizations.forEach((r) => {
+      const key = moment(r.attendanceDate)
+        .utcOffset("+05:30")
+        .format("YYYY-MM-DD");
+
+      if (!regularizationMap.has(key)) {
+        regularizationMap.set(key, r);
+      }
+    });
+
     const todayKey = nowIST.format("YYYY-MM-DD");
     const WORK_SECONDS = 8 * 3600;
 
@@ -455,6 +489,9 @@ export const getAttendanceRecord = async (req, res) => {
 
         const rec = recMap.get(dayKey);
         const hasAttendance = !!rec;
+
+        const existingRegularization = regularizationMap.get(dayKey) || null;
+        const hasRegularization = !!existingRegularization;
 
         let totalSeconds = 0;
 
@@ -503,6 +540,8 @@ export const getAttendanceRecord = async (req, res) => {
             onTime: getOnTimeStatus(rec.punchIn),
             holiday: holidayMap.get(dayKey) || null,
             onLeave: leaveSet.has(dayKey),
+            hasRegularization,
+            ...(hasRegularization && { regularization: existingRegularization }),
           };
         }
 
@@ -519,6 +558,8 @@ export const getAttendanceRecord = async (req, res) => {
             totalHours: 0,
             status: "On Leave",
             onTime: null,
+            hasRegularization,
+            ...(hasRegularization && { regularization: existingRegularization }),
           };
         }
 
@@ -535,6 +576,8 @@ export const getAttendanceRecord = async (req, res) => {
             totalHours: 0,
             status: `Holiday (${holidayMap.get(dayKey)})`,
             onTime: null,
+            hasRegularization,
+            ...(hasRegularization && { regularization: existingRegularization }),
           };
         }
 
@@ -550,6 +593,8 @@ export const getAttendanceRecord = async (req, res) => {
           totalHours: 0,
           status: "Absent",
           onTime: null,
+          hasRegularization,
+          ...(hasRegularization && { regularization: existingRegularization }),
         };
       })
       .sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -1306,6 +1351,773 @@ export const getMonthlyAttendanceForAdmin = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Server error while fetching monthly attendance.",
+      error: err.message,
+    });
+  }
+};
+
+// ----------------------------------Regularization API's-------------------------------------
+export const createRegularization = async (req, res) => {
+  try {
+    const {
+      attendanceDate,
+      requestedPunchIn,
+      requestedPunchOut,
+      requestType,
+      reason,
+      userId,
+    } = req.body;
+
+    const employeeId =
+      req.user.role === "admin"
+        ? userId
+        : req.user._id;
+
+    if (!employeeId) {
+      return res.status(400).json({
+        success: false,
+        message: "User is required.",
+      });
+    }
+
+    if (
+      !attendanceDate ||
+      !requestedPunchIn ||
+      !requestedPunchOut ||
+      !reason
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "All required fields must be provided.",
+      });
+    }
+
+    const attendanceMoment = moment(attendanceDate)
+      .utcOffset("+05:30")
+      .startOf("day");
+
+    if (attendanceMoment.isAfter(moment().utcOffset("+05:30"), "day")) {
+      return res.status(400).json({
+        success: false,
+        message: "Future attendance cannot be regularized.",
+      });
+    }
+
+    const punchIn = moment(requestedPunchIn);
+    const punchOut = moment(requestedPunchOut);
+
+    if (!punchIn.isValid() || !punchOut.isValid()) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid punch timings.",
+      });
+    }
+
+    if (punchOut.isSameOrBefore(punchIn)) {
+      return res.status(400).json({
+        success: false,
+        message: "Punch-out must be after punch-in.",
+      });
+    }
+
+    const attendanceDateString = attendanceMoment.format("YYYY-MM-DD");
+
+    if (
+      punchIn.utcOffset("+05:30").format("YYYY-MM-DD") !== attendanceDateString
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Punch-in date must match attendance date.",
+      });
+    }
+
+    if (
+      punchOut.utcOffset("+05:30").format("YYYY-MM-DD") !== attendanceDateString
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Punch-out date must match attendance date.",
+      });
+    }
+
+    const pendingRequest = await Regularization.findOne({
+      userId: employeeId,
+      attendanceDate: attendanceMoment.toDate(),
+      status: "Pending",
+    });
+
+    if (pendingRequest) {
+      return res.status(409).json({
+        success: false,
+        message:
+          "A regularization request is already pending for this date.",
+      });
+    }
+
+    let attendanceId = null;
+    let attendanceRecordId = null;
+    let currentPunchIn = null;
+    let currentPunchOut = null;
+
+    const attendance = await Attendance.findOne({
+      userId: employeeId,
+    });
+
+    if (attendance) {
+      attendanceId = attendance._id;
+
+      const record = attendance.records.find((r) =>
+        moment(r.date)
+          .utcOffset("+05:30")
+          .isSame(attendanceMoment, "day")
+      );
+
+      if (record) {
+        attendanceRecordId = record._id;
+        currentPunchIn = record.punchIn;
+        currentPunchOut = record.punchOut;
+      }
+    }
+
+    const regularization = await Regularization.create({
+      attendanceId,
+      attendanceRecordId,
+      userId: employeeId,
+      attendanceDate: attendanceMoment.toDate(),
+      currentPunchIn,
+      currentPunchOut,
+      requestedPunchIn,
+      requestedPunchOut,
+      requestType,
+      reason,
+    });
+
+    // attempt to send notification to admins (do not block success response)
+    try {
+      MailService.sendRegularizationNotification(regularization).catch((e) =>
+        console.error("Mailer error:", e)
+      );
+      MailService.sendRegularizationSelfNotification(regularization).catch((e) =>
+        console.error("Mailer error:", e)
+      );
+    } catch (e) {
+      console.error("Failed to queue mail:", e);
+    }
+
+    return res.status(201).json({
+      success: true,
+      message: "Regularization request submitted successfully.",
+      data: regularization,
+    });
+  } catch (err) {
+    console.error("Create Regularization Error:", err);
+
+    return res.status(500).json({
+      success: false,
+      message: "Server error while creating regularization.",
+      error: err.message,
+    });
+  }
+};
+
+export const updateRegularization = async (req, res) => {
+  try {
+    const { regularizationId } = req.params;
+
+    const {
+      attendanceDate,
+      requestedPunchIn,
+      requestedPunchOut,
+      requestType,
+      reason,
+    } = req.body;
+
+    const regularization = await Regularization.findById(regularizationId);
+
+    if (!regularization) {
+      return res.status(404).json({
+        success: false,
+        message: "Regularization request not found.",
+      });
+    }
+
+    // Only owner or admin can update
+    if (
+      req.user.role !== "admin" &&
+      regularization.userId.toString() !== req.user._id.toString()
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "You are not authorized to update this request.",
+      });
+    }
+
+    // Cannot update once processed
+    if (regularization.status !== "Pending") {
+      return res.status(400).json({
+        success: false,
+        message: `This request has already been ${regularization.status.toLowerCase()}.`,
+      });
+    }
+
+    if (
+      !attendanceDate ||
+      !requestedPunchIn ||
+      !requestedPunchOut ||
+      !reason
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "All required fields are mandatory.",
+      });
+    }
+
+    const attendanceMoment = moment(attendanceDate)
+      .utcOffset("+05:30")
+      .startOf("day");
+
+    if (attendanceMoment.isAfter(moment().utcOffset("+05:30"), "day")) {
+      return res.status(400).json({
+        success: false,
+        message: "Future attendance cannot be regularized.",
+      });
+    }
+
+    const punchIn = moment(requestedPunchIn);
+    const punchOut = moment(requestedPunchOut);
+
+    if (!punchIn.isValid() || !punchOut.isValid()) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid punch timings.",
+      });
+    }
+
+    if (!punchOut.isAfter(punchIn)) {
+      return res.status(400).json({
+        success: false,
+        message: "Punch-out must be greater than punch-in.",
+      });
+    }
+
+    const attendanceDateString = attendanceMoment.format("YYYY-MM-DD");
+
+    if (
+      punchIn.utcOffset("+05:30").format("YYYY-MM-DD") !==
+      attendanceDateString
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Punch-in date must match attendance date.",
+      });
+    }
+
+    if (
+      punchOut.utcOffset("+05:30").format("YYYY-MM-DD") !==
+      attendanceDateString
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Punch-out date must match attendance date.",
+      });
+    }
+
+    // Prevent duplicate pending request on another date
+    const duplicate = await Regularization.findOne({
+      _id: { $ne: regularizationId },
+      userId: regularization.userId,
+      attendanceDate: attendanceMoment.toDate(),
+      status: "Pending",
+    });
+
+    if (duplicate) {
+      return res.status(409).json({
+        success: false,
+        message:
+          "A pending regularization request already exists for this date.",
+      });
+    }
+
+    // Refresh attendance snapshot
+    let attendanceId = null;
+    let attendanceRecordId = null;
+    let currentPunchIn = null;
+    let currentPunchOut = null;
+
+    const attendance = await Attendance.findOne({
+      userId: regularization.userId,
+    });
+
+    if (attendance) {
+      attendanceId = attendance._id;
+
+      const record = attendance.records.find((r) =>
+        moment(r.date)
+          .utcOffset("+05:30")
+          .isSame(attendanceMoment, "day")
+      );
+
+      if (record) {
+        attendanceRecordId = record._id;
+        currentPunchIn = record.punchIn;
+        currentPunchOut = record.punchOut;
+      }
+    }
+
+    regularization.attendanceId = attendanceId;
+    regularization.attendanceRecordId = attendanceRecordId;
+
+    regularization.attendanceDate = attendanceMoment.toDate();
+
+    regularization.currentPunchIn = currentPunchIn;
+    regularization.currentPunchOut = currentPunchOut;
+
+    regularization.requestedPunchIn = requestedPunchIn;
+    regularization.requestedPunchOut = requestedPunchOut;
+
+    regularization.requestType = requestType;
+    regularization.reason = reason;
+
+    await regularization.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Regularization updated successfully.",
+      data: regularization,
+    });
+  } catch (err) {
+    console.error("Update Regularization Error:", err);
+
+    return res.status(500).json({
+      success: false,
+      message: "Server error while updating regularization.",
+      error: err.message,
+    });
+  }
+};
+
+export const updateRegularizationByAdmin = async (req, res) => {
+  if (req.user.role !== "admin") {
+    return res.status(403).json({
+      success: false,
+      message: "Only admins can review regularization requests.",
+    });
+  }
+
+  const { regularizationId } = req.params;
+  const { status, reviewComment } = req.body;
+
+  if (!mongoose.isValidObjectId(regularizationId)) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid regularization ID.",
+    });
+  }
+
+  const allowedStatuses = ["Approved", "Rejected"];
+  if (!status || !allowedStatuses.includes(status)) {
+    return res.status(400).json({
+      success: false,
+      message: `status is required and must be one of: ${allowedStatuses.join(
+        ", "
+      )}`,
+    });
+  }
+
+  try {
+    const regularization = await Regularization.findById(regularizationId);
+
+    if (!regularization) {
+      return res.status(404).json({
+        success: false,
+        message: "Regularization request not found.",
+      });
+    }
+
+    if (regularization.status !== "Pending") {
+      return res.status(400).json({
+        success: false,
+        message: `This request has already been ${regularization.status.toLowerCase()}.`,
+      });
+    }
+
+    // ==========================================================
+    // REJECTED — no attendance changes, simple status update
+    // ==========================================================
+    if (status === "Rejected") {
+      regularization.status = "Rejected";
+      regularization.reviewedBy = req.user._id;
+      regularization.reviewedAt = new Date();
+      if (reviewComment !== undefined) {
+        regularization.reviewComment = reviewComment;
+      }
+
+      await regularization.save();
+
+      return res.status(200).json({
+        success: true,
+        message: "Regularization request rejected successfully.",
+        data: regularization,
+      });
+    }
+
+    // ==========================================================
+    // APPROVED — apply requested punch times to Attendance,
+    // then close out the regularization.
+    //
+    // No transaction (standalone MongoDB, not a replica set), so
+    // writes are ordered deliberately: Attendance first, then
+    // Regularization. If the Attendance write fails, nothing has
+    // changed. If it succeeds but the Regularization save fails,
+    // attendance is already correct — only the status label is
+    // stale, which is safe and recoverable by retrying.
+    // ==========================================================
+
+    const targetDate = moment(regularization.attendanceDate)
+      .utcOffset("+05:30")
+      .startOf("day")
+      .toDate();
+
+    const targetDateStr = moment(targetDate)
+      .utcOffset("+05:30")
+      .format("YYYY-MM-DD");
+
+    // Same safety check updateAttendance performs — guards against
+    // stale/bad data ever reaching this point, even though
+    // createRegularization/updateRegularization already enforce this
+    // at submission time.
+    const pinDateStr = moment(regularization.requestedPunchIn)
+      .utcOffset("+05:30")
+      .format("YYYY-MM-DD");
+    const poutDateStr = moment(regularization.requestedPunchOut)
+      .utcOffset("+05:30")
+      .format("YYYY-MM-DD");
+
+    if (pinDateStr !== targetDateStr || poutDateStr !== targetDateStr) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Requested punch times do not match the attendance date on this request. Please contact support.",
+      });
+    }
+
+    if (
+      new Date(regularization.requestedPunchOut) <=
+      new Date(regularization.requestedPunchIn)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Requested punch-out must be after punch-in.",
+      });
+    }
+
+    let attendanceDoc = await Attendance.findOne({
+      userId: regularization.userId,
+    });
+
+    if (!attendanceDoc) {
+      attendanceDoc = new Attendance({
+        userId: regularization.userId,
+        records: [],
+        monthlySummary: [],
+      });
+    }
+
+    let record = attendanceDoc.records.find((r) =>
+      moment(r.date).isSame(targetDate, "day")
+    );
+
+    const newPunchIn = new Date(regularization.requestedPunchIn);
+    const newPunchOut = new Date(regularization.requestedPunchOut);
+    const newTotalHours = Math.floor((newPunchOut - newPunchIn) / 1000);
+
+    if (!record) {
+      record = {
+        date: targetDate,
+        punchIn: newPunchIn,
+        punchOut: newPunchOut,
+        totalHours: newTotalHours,
+      };
+      attendanceDoc.records.push(record);
+    } else {
+      record.punchIn = newPunchIn;
+      record.punchOut = newPunchOut;
+      record.totalHours = newTotalHours;
+    }
+
+    updateMonthlySummary(attendanceDoc, targetDate);
+
+    await attendanceDoc.save();
+
+    // Attendance write succeeded — now close out the regularization.
+    regularization.status = "Approved";
+    regularization.reviewedBy = req.user._id;
+    regularization.reviewedAt = new Date();
+    regularization.attendanceId = attendanceDoc._id;
+    if (reviewComment !== undefined) {
+      regularization.reviewComment = reviewComment;
+    }
+
+    try {
+      await regularization.save();
+    } catch (saveErr) {
+      // Attendance is already correct at this point — only the status
+      // label failed to persist. Surface this distinctly so the
+      // frontend/admin knows attendance is fine but status is stale
+      // and a retry of this same request is safe.
+      console.error(
+        `Attendance updated for regularization ${regularizationId}, but marking it Approved failed:`,
+        saveErr
+      );
+      return res.status(207).json({
+        success: false,
+        partial: true,
+        message:
+          "Attendance was updated successfully, but the request status could not be updated. Please retry.",
+        error: saveErr.message,
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Regularization request approved successfully.",
+      data: regularization,
+    });
+  } catch (err) {
+    console.error("Update Regularization By Admin Error:", err);
+
+    if (err.statusCode) {
+      return res.status(err.statusCode).json({
+        success: false,
+        message: err.message,
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Server error while reviewing regularization request.",
+      error: err.message,
+    });
+  }
+};
+
+export const getAllRegularization = async (req, res) => {
+  try {
+    const {
+      status,
+      requestType,
+      userId,
+      startDate,
+      endDate,
+      search,
+      page = 1,
+      limit = 20,
+    } = req.query;
+
+    const isAdmin = req.user.role === "admin";
+    const match = {};
+
+    // Non-admins can only ever see their own requests
+    if (!isAdmin) {
+      match.userId = new mongoose.Types.ObjectId(req.user._id);
+    } else if (userId) {
+      if (!mongoose.isValidObjectId(userId)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid userId.",
+        });
+      }
+      match.userId = new mongoose.Types.ObjectId(userId);
+    }
+
+    if (status) {
+      const allowedStatuses = ["Pending", "Approved", "Rejected"];
+      if (!allowedStatuses.includes(status)) {
+        return res.status(400).json({
+          success: false,
+          message: `status must be one of: ${allowedStatuses.join(", ")}`,
+        });
+      }
+      match.status = status;
+    }
+
+    if (requestType) {
+      match.requestType = requestType;
+    }
+
+    if (startDate || endDate) {
+      match.attendanceDate = {};
+      if (startDate) {
+        const s = moment(startDate).utcOffset("+05:30").startOf("day");
+        if (!s.isValid()) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid startDate.",
+          });
+        }
+        match.attendanceDate.$gte = s.toDate();
+      }
+      if (endDate) {
+        const e = moment(endDate).utcOffset("+05:30").endOf("day");
+        if (!e.isValid()) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid endDate.",
+          });
+        }
+        match.attendanceDate.$lte = e.toDate();
+      }
+      if (
+        match.attendanceDate.$gte &&
+        match.attendanceDate.$lte &&
+        match.attendanceDate.$gte > match.attendanceDate.$lte
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: "startDate cannot be after endDate.",
+        });
+      }
+    }
+
+    const pageNum = Math.max(parseInt(page, 10) || 1, 1);
+    const limitNum = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100); // cap page size
+    const skip = (pageNum - 1) * limitNum;
+
+    // Base pipeline: filters that don't need the joined user doc
+    const pipeline = [
+      { $match: match },
+      {
+        $lookup: {
+          from: "users", // adjust if your User collection name differs
+          localField: "userId",
+          foreignField: "_id",
+          as: "userId",
+        },
+      },
+      { $unwind: { path: "$userId", preserveNullAndEmptyArrays: true } },
+    ];
+
+    // Free-text search across employee name/email, request type, and reason.
+    // Done after $lookup so we can search the joined employee fields too —
+    // this is why we can't just use find().populate() here.
+    if (search && String(search).trim()) {
+      const re = new RegExp(escapeRegex(String(search).trim()), "i");
+      pipeline.push({
+        $match: {
+          $or: [
+            { requestType: re },
+            { reason: re },
+            { "userId.name": re },
+            { "userId.email": re },
+          ],
+        },
+      });
+    }
+
+    pipeline.push({
+      $project: {
+        attendanceId: 1,
+        attendanceRecordId: 1,
+        userId: {
+          _id: "$userId._id",
+          name: "$userId.name",
+          email: "$userId.email",
+          employeeId: "$userId.employeeId",
+        },
+        attendanceDate: 1,
+        currentPunchIn: 1,
+        currentPunchOut: 1,
+        requestedPunchIn: 1,
+        requestedPunchOut: 1,
+        requestType: 1,
+        reason: 1,
+        status: 1,
+        reviewedBy: 1,
+        reviewComment: 1,
+        reviewedAt: 1,
+        createdAt: 1,
+        updatedAt: 1,
+      },
+    });
+
+    pipeline.push({
+      $facet: {
+        data: [
+          { $sort: { createdAt: -1 } },
+          { $skip: skip },
+          { $limit: limitNum },
+        ],
+        totalCount: [{ $count: "count" }],
+      },
+    });
+
+    const [result] = await Regularization.aggregate(pipeline);
+
+    const data = result?.data || [];
+    const total = result?.totalCount?.[0]?.count || 0;
+
+    return res.status(200).json({
+      success: true,
+      data,
+      pagination: {
+        total,
+        page: pageNum,
+        limit: limitNum,
+        totalPages: Math.max(Math.ceil(total / limitNum), 1),
+      },
+    });
+  } catch (err) {
+    console.error("Get All Regularization Error:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Server error while fetching regularization requests.",
+      error: err.message,
+    });
+  }
+};
+
+export const getRegularizationById = async (req, res) => {
+  try {
+    const { regularizationId } = req.params;
+
+    if (!mongoose.isValidObjectId(regularizationId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid regularization ID.",
+      });
+    }
+
+    const regularization = await Regularization.findById(regularizationId)
+      .populate("userId", "name email employeeId")
+      .lean();
+
+    if (!regularization) {
+      return res.status(404).json({
+        success: false,
+        message: "Regularization request not found.",
+      });
+    }
+
+    const isOwner =
+      regularization.userId?._id?.toString() === req.user._id.toString() ||
+      regularization.userId?.toString() === req.user._id.toString();
+
+    if (req.user.role !== "admin" && !isOwner) {
+      return res.status(403).json({
+        success: false,
+        message: "You are not authorized to view this request.",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: regularization,
+    });
+  } catch (err) {
+    console.error("Get Regularization By Id Error:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Server error while fetching regularization request.",
       error: err.message,
     });
   }

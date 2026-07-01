@@ -133,11 +133,29 @@ async function processMonthlyLeaveUpdate(triggerSource = "scheduled") {
           continue;
         }
 
+        // if (leaveMap.has(dateKey)) {
+        //   dayStatus.set(
+        //     dateKey,
+        //     leaveMap.get(dateKey) === 0.5 ? "HalfLeave" : "Leave"
+        //   );
+        //   continue;
+        // }
+
         if (leaveMap.has(dateKey)) {
-          dayStatus.set(
-            dateKey,
-            leaveMap.get(dateKey) === 0.5 ? "HalfLeave" : "Leave"
-          );
+          const rec = recMap.get(dateKey);
+          const totalHours = rec?.totalHours || 0;
+
+          if (totalHours >= 6 * 3600) {
+            // Employee actually worked a full day despite approved leave
+            dayStatus.set(dateKey, "Present"); // or a new "LeaveOverridden" status
+            continue;
+          }
+          if (totalHours >= 4 * 3600) {
+            dayStatus.set(dateKey, "Half"); // partial work, could half-cancel leave, business-rule dependent
+            continue;
+          }
+
+          dayStatus.set(dateKey, leaveMap.get(dateKey) === 0.5 ? "HalfLeave" : "Leave");
           continue;
         }
 
