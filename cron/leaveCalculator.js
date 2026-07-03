@@ -5,6 +5,7 @@ import Attendance from "../models/Attendance.js";
 import Leave from "../models/Leaves.js";
 import Calendar from "../models/Calendar.js";
 import CronLog from "../models/cronLogs.js";
+import LeaveBalanceHistory from "../models/LeaveBalanceHistory.js";
 
 /* ------------------ HELPERS ------------------ */
 function listDays(start, end) {
@@ -35,6 +36,45 @@ async function ensureLeaveInfoForUsers() {
   );
 }
 
+/* ---------- PROVISION PERIOD (3 MONTHS FROM EFFECTIVE JOINING MONTH) ---------- */
+// Joined on/before 15th -> that month counts as provision month 1.
+// Joined after 15th -> provision starts the following month.
+function getProvisionMonths(joiningDate) {
+  const joining = moment(joiningDate).utcOffset("+05:30");
+  const joiningDay = joining.date();
+
+  let startMonth = joining.month() + 1; // 1-based
+  let startYear = joining.year();
+
+  if (joiningDay > 15) {
+    startMonth += 1;
+    if (startMonth > 12) {
+      startMonth = 1;
+      startYear += 1;
+    }
+  }
+
+  const months = [];
+  let m = startMonth;
+  let y = startYear;
+  for (let i = 0; i < 3; i++) {
+    months.push({ month: m, year: y });
+    m += 1;
+    if (m > 12) {
+      m = 1;
+      y += 1;
+    }
+  }
+  return months;
+}
+
+function isInProvisionPeriod(joiningDate, month, year) {
+  if (!joiningDate) return false;
+  return getProvisionMonths(joiningDate).some(
+    (p) => p.month === month && p.year === year
+  );
+}
+
 /* ------------------ MAIN LOGIC ------------------ */
 async function processMonthlyLeaveUpdate(triggerSource = "scheduled") {
   const now = moment().utcOffset("+05:30");
@@ -48,20 +88,20 @@ async function processMonthlyLeaveUpdate(triggerSource = "scheduled") {
   await ensureLeaveInfoForUsers();
 
   /* ---------- FINANCIAL YEAR RESET (APRIL) ---------- */
-  if (now.month() === 3) {
-    await User.updateMany(
-      {},
-      {
-        $set: {
-          "leaveInfo.balance": 1,
-          "leaveInfo.extraLOP": 0,
-          "leaveInfo.updatedOn": new Date(),
-        },
-      }
-    );
-    console.log("Financial year reset completed");
-    return;
-  }
+  // if (now.month() === 3) {
+  //   await User.updateMany(
+  //     {},
+  //     {
+  //       $set: {
+  //         "leaveInfo.balance": 1,
+  //         "leaveInfo.extraLOP": 0,
+  //         "leaveInfo.updatedOn": new Date(),
+  //       },
+  //     }
+  //   );
+  //   console.log("Financial year reset completed");
+  //   return;
+  // }
 
   /* ---------- PREVIOUS MONTH ---------- */
   const prevMonth = now.clone().subtract(1, "month");
@@ -235,10 +275,46 @@ async function processMonthlyLeaveUpdate(triggerSource = "scheduled") {
         else if (status === "HalfLeave") leaveUsed += 0.5;
       }
 
+      /* ---------- PROVISION PERIOD CHECK ---------- */
+      const inProvision = isInProvisionPeriod(user.joiningDate, month, year);
+
       /* ---------- FINAL BALANCE & LOP ---------- */
       const currentBalance = user.leaveInfo?.balance ?? 0;
-      const extraLOP = Math.max(leaveUsed - currentBalance, 0);
-      const finalBalance = Math.max(currentBalance - leaveUsed, 0) + 1;
+
+      let extraLOP;
+      let finalBalance;
+
+      if (inProvision) {
+        // Provision period: no LOP, balance pinned to 1 regardless of leaveUsed
+        extraLOP = 0;
+        finalBalance = 1;
+      } else {
+        extraLOP = Math.max(leaveUsed - currentBalance, 0);
+        // const finalBalance = Math.max(currentBalance - leaveUsed, 0) + 1;
+        finalBalance = Math.min(
+          Math.max(currentBalance - leaveUsed, 0) + 1,
+          10
+        );
+      }
+
+      await LeaveBalanceHistory.updateOne(
+        {
+          userId: user._id,
+          month,
+          year,
+        },
+        {
+          $set: {
+            openingBalance: currentBalance,
+            leaveUsed,
+            extraLOP,
+            closingBalance: finalBalance,
+          },
+        },
+        {
+          upsert: true,
+        }
+      );
 
       await User.updateOne(
         { _id: user._id },

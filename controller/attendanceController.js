@@ -8,6 +8,7 @@ import User from "../models/Users.js";
 import Leave from "../models/Leaves.js"; // import Leave model
 import Regularization from "../models/Regularization.js";
 import MailService from "../services/mailService.js";
+import LeaveBalanceHistory from "../models/LeaveBalanceHistory.js";
 
 const ONTIME_THRESHOLD_MINUTES = 10 * 60; // 10:00 AM / 600 mins
 
@@ -1172,8 +1173,9 @@ export const getMonthlyAttendanceForAdmin = async (req, res) => {
       });
     }
 
-    month = Number(month) - 1;
+    const requestedMonth = Number(month); // 1-based — keep for history lookup & "is current month" check
     year = Number(year);
+    month = requestedMonth - 1; // 0-based — used for date math below (unchanged)
 
     const startOfMonth = moment.tz({ year, month, day: 1 }, "Asia/Kolkata");
     const endOfMonth = startOfMonth.clone().endOf("month");
@@ -1193,9 +1195,76 @@ export const getMonthlyAttendanceForAdmin = async (req, res) => {
       attendanceMap.set(String(doc.userId), doc.records || []);
     });
 
+    // ---------- LEAVE BALANCE HISTORY LOOKUP FOR REQUESTED MONTH ----------
+    const leaveHistoryDocs = await LeaveBalanceHistory.find({
+      userId: { $in: users.map(u => u._id) },
+      month: requestedMonth,
+      year,
+    }).lean();
+
+    const leaveHistoryMap = new Map();
+    leaveHistoryDocs.forEach(h => {
+      leaveHistoryMap.set(String(h.userId), h);
+    });
+
+    // Is the requested month/year the current real-world month/year?
+    const nowIST = moment.tz("Asia/Kolkata");
+    const isCurrentMonth =
+      requestedMonth === nowIST.month() + 1 && year === nowIST.year();
+
+    const currentMonth = nowIST.month() + 1;
+    const currentYear = nowIST.year();
+
+    const previousMonth =
+      currentMonth === 1 ? 12 : currentMonth - 1;
+
+    const previousMonthYear =
+      currentMonth === 1 ? currentYear - 1 : currentYear;
+
+    const getLeaveFigures = (u) => {
+      const history = leaveHistoryMap.get(String(u._id));
+
+      // ---------------- CURRENT MONTH ----------------
+      if (
+        requestedMonth === currentMonth &&
+        year === currentYear
+      ) {
+        return {
+          balance: u.leaveInfo?.balance ?? "-",
+          extraLOP: "-", // Current month's LOP isn't finalized yet
+        };
+      }
+
+      // ---------------- PREVIOUS MONTH ----------------
+      if (
+        requestedMonth === previousMonth &&
+        year === previousMonthYear
+      ) {
+        return {
+          balance: history
+            ? history.closingBalance
+            : "-",
+          extraLOP: history
+            ? history.extraLOP
+            : (u.leaveInfo?.extraLOP ?? "-"),
+        };
+      }
+
+      // ---------------- OLDER MONTHS ----------------
+      if (history) {
+        return {
+          balance: history.closingBalance,
+          extraLOP: history.extraLOP,
+        };
+      }
+
+      return {
+        balance: "-",
+        extraLOP: "-",
+      };
+    };
+
     // Normalize each user's joining date to start-of-day in IST, once.
-    // No joiningDate on record => treat as already-joined (never shows
-    // "Not Joined"), so older users without the field aren't affected.
     const joiningDateMap = new Map();
     users.forEach(u => {
       joiningDateMap.set(
@@ -1237,14 +1306,16 @@ export const getMonthlyAttendanceForAdmin = async (req, res) => {
           moment(r.date).isSame(date, "day")
         );
 
+        const { balance, extraLOP } = getLeaveFigures(u);
+
         // ── Not joined yet — takes priority over holiday/attendance ──
         const joiningDate = joiningDateMap.get(String(u._id));
         if (joiningDate && date.isBefore(joiningDate, "day")) {
           row.users.push({
             userId: u._id,
             name: u.name,
-            lop: u.leaveInfo?.extraLOP,
-            leaveBalance: u.leaveInfo?.balance,
+            lop: extraLOP,
+            leaveBalance: balance,
             punchIn: "",
             punchOut: "",
             totalHours: 0,
@@ -1258,8 +1329,8 @@ export const getMonthlyAttendanceForAdmin = async (req, res) => {
           row.users.push({
             userId: u._id,
             name: u.name,
-            lop: u.leaveInfo?.extraLOP,
-            leaveBalance: u.leaveInfo?.balance,
+            lop: extraLOP,
+            leaveBalance: balance,
             punchIn: "",
             punchOut: "",
             totalHours: 0,
@@ -1290,8 +1361,8 @@ export const getMonthlyAttendanceForAdmin = async (req, res) => {
           row.users.push({
             userId: u._id,
             name: u.name,
-            lop: u.leaveInfo?.extraLOP,
-            leaveBalance: u.leaveInfo?.balance,
+            lop: extraLOP,
+            leaveBalance: balance,
             punchIn: punchIn.toDate(),
             punchOut: punchOut ? punchOut.toDate() : "",
             totalHours: totalSec,
@@ -1302,8 +1373,8 @@ export const getMonthlyAttendanceForAdmin = async (req, res) => {
           row.users.push({
             userId: u._id,
             name: u.name,
-            lop: u.leaveInfo?.extraLOP,
-            leaveBalance: u.leaveInfo?.balance,
+            lop: extraLOP,
+            leaveBalance: balance,
             punchIn: "",
             punchOut: "",
             totalHours: 0,
@@ -1333,7 +1404,6 @@ export const getMonthlyAttendanceForAdmin = async (req, res) => {
           result[prev].users[u].status === "Absent" &&
           result[next].users[u].status === "Absent"
         ) {
-          // Only change status value, nothing else
           result[d].users[u].status = "Absent";
         }
       }
