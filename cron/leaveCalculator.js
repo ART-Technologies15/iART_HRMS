@@ -81,12 +81,34 @@ async function processMonthlyLeaveUpdate(triggerSource = "scheduled") {
   /* ---------- ACTIVE USERS ---------- */
   const users = await User.find({
     isActive: true,
-    role: "employee",
+    // role: "employee",
+    role: { $ne: "admin" },
   }).lean();
 
   /* ================= PER USER ================= */
   for (const user of users) {
     try {
+
+      /* ---------- DETERMINE EFFECTIVE DAYS (JOINING DATE) ---------- */
+      let userDays = daysOfMonth; // default: full month
+
+      if (user.joiningDate) {
+        const joining = moment(user.joiningDate).utcOffset("+05:30").startOf("day");
+
+        // Joined after this month entirely — nothing to process yet
+        if (joining.isAfter(rangeEnd, "day")) {
+          console.log(`${user.name} | joined after this month, skipping`);
+          continue;
+        }
+
+        // Joined during this same month — only count from joining date onward
+        if (joining.month() + 1 === month && joining.year() === year) {
+          const effectiveStart = joining.clone();
+          userDays = listDays(effectiveStart.toDate(), rangeEnd.toDate());
+        }
+        // else: joined in an earlier month — full month (daysOfMonth) stands as-is
+      }
+
       /* ---------- ATTENDANCE MAP ---------- */
       const attDoc = await Attendance.findOne({ userId: user._id }).lean();
       const recMap = new Map();
@@ -121,7 +143,8 @@ async function processMonthlyLeaveUpdate(triggerSource = "scheduled") {
       /* ---------- BUILD DAILY STATUS (NO SKIPPING) ---------- */
       const dayStatus = new Map(); // YYYY-MM-DD -> status
 
-      for (const d of daysOfMonth) {
+      // for (const d of daysOfMonth) {
+      for (const d of userDays) {
         const m = moment(d).utcOffset("+05:30");
         const dateKey = m.format("YYYY-MM-DD");
         const dayNum = m.date();

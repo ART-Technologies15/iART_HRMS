@@ -1259,6 +1259,7 @@ export const getMonthlyAttendanceForAdmin = async (req, res) => {
             userId: u._id,
             name: u.name,
             lop: u.leaveInfo?.extraLOP,
+            leaveBalance: u.leaveInfo?.balance,
             punchIn: "",
             punchOut: "",
             totalHours: 0,

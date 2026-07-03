@@ -325,6 +325,87 @@ export const getAllUsers = async (req, res) => {
     // Build search query
     const query = {
       _id: { $ne: req.user._id },
+      // isActive: true,
+    };
+
+    if (search) {
+      const regex = new RegExp(search, "i");
+      query.$or = [
+        { name: regex },
+        { email: regex },
+        { mobile: regex },
+        { alternateMobile: regex },
+        { address: regex },
+        { designation: regex },
+      ];
+    }
+
+    if (role) query.role = role;
+    if (department) query.department = department;
+    if (designation) query.designation = designation;
+
+    const skip = (Number(page) - 1) * Number(limit);
+
+    // Dynamic field selection based on role
+    const selectFields =
+      req.user.role === "admin"
+        ? "-passwordHash" // Admin sees everything except password
+        : "-passwordHash -address -alternateMobile -pan -aadhaar -bankDetails"; // Non-admin sees NONE of these
+
+    const [users, total] = await Promise.all([
+      User.find(query)
+        .select(selectFields)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(Number(limit))
+        .lean(), // Important: .lean() returns plain JS objects → faster + safer
+
+      User.countDocuments(query),
+    ]);
+
+    // Convert _id to string for consistency (optional but clean)
+    const filteredUsers = users.map((user) => ({
+      ...user,
+      _id: user._id.toString(),
+    }));
+
+    res.status(200).json({
+      success: true,
+      message: "Users fetched successfully",
+      users: filteredUsers,
+      pagination: {
+        total,
+        page: Number(page),
+        limit: Number(limit),
+        totalPages: Math.ceil(total / Number(limit)),
+      },
+    });
+  } catch (err) {
+    console.error("Error fetching users:", err);
+    res.status(500).json({
+      success: false,
+      message: "Server error while fetching users",
+      error: err.message,
+    });
+  }
+};
+
+export const getAllUsersPhoneBook = async (req, res) => {
+  try {
+    const user = req.user
+
+    const {
+      page = 1,
+      limit = 10,
+      search = "",
+      role = "",
+      department = "",
+      designation = "",
+    } = req.query;
+
+    // Build search query
+    const query = {
+      _id: { $ne: req.user._id },
       isActive: true,
     };
 
