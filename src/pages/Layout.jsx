@@ -35,8 +35,7 @@ const Layout = () => {
   return (
     <div className="w-full flex h-screen overflow-hidden relative">
       {/* Sidebar */}
-      <div ref={sidebarRef}
-        className="w-0 lg:w-64 flex-shrink-0">
+      <div ref={sidebarRef}>
         <Sidebar
           sidebarOpen={sidebarOpen}
           setSidebarOpen={setSidebarOpen}
@@ -47,13 +46,13 @@ const Layout = () => {
       {/* Overlay (only visible on small screens when sidebar is open) */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/40 z-30 md:hidden"
+          className="fixed inset-0 bg-black/40 z-40 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         ></div>
       )}
 
       {/* Right side: header + content */}
-      <div className="flex-1 flex flex-col bg-slate-50 z-10 relative min-w-0">
+      <div className="flex-1 flex flex-col bg-slate-50 relative min-w-0">
         <Header
           user={user}
           sidebarOpen={sidebarOpen}
