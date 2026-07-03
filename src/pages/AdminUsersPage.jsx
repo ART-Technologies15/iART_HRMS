@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { Search, SlidersHorizontal, Plus, Menu, Pencil, Trash2, Calendar } from "lucide-react";
+import React, { useEffect, useRef, useState } from "react";
+import { Search, SlidersHorizontal, Plus, Menu } from "lucide-react";
 import CustomTable from "../components/CustomTable";
 import UserDetailsModal from "../components/UserDetailsModal";
 import AdminUserFilterModal from "../components/AdminUserFilterModal";
@@ -22,11 +22,27 @@ const AdminUsersPage = () => {
 
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // Search — raw input vs debounced value sent to API
+  const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
+
   const [filters, setFilters] = useState({
     designation: "",
     role: "",
     department: "",
+  });
+
+  // Server pagination state
+  const [page, setPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalRecords, setTotalRecords] = useState(0);
+
+  const [filterOptions, setFilterOptions] = useState({
+    roles: [],
+    departments: [],
+    designations: [],
   });
 
   const [filterOpen, setFilterOpen] = useState(false);
@@ -36,13 +52,40 @@ const AdminUsersPage = () => {
   const [saving, setSaving] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Fetch Users
+  // Guard against double-invoke on mount (React StrictMode / effect re-fire)
+  const didInitFetchOptions = useRef(false);
+
+  // Debounce the search input -> `search`
+  const searchDebounceRef = useRef(null);
+  useEffect(() => {
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    searchDebounceRef.current = setTimeout(() => {
+      setPage(1); // reset to page 1 whenever the search term changes
+      setSearch(searchInput.trim());
+    }, 400);
+    return () => clearTimeout(searchDebounceRef.current);
+  }, [searchInput]);
+
+  // Fetch users whenever page, rowsPerPage, search, or filters change
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const res = await getAllUsers();
-      if (res?.success) setUsers(res.users);
-      else toast.error(res?.message || "Failed to load users");
+      const res = await getAllUsers({
+        page,
+        limit: rowsPerPage,
+        search,
+        role: filters.role,
+        department: filters.department,
+        designation: filters.designation,
+      });
+
+      if (res?.success) {
+        setUsers(res.users);
+        setTotalPages(res.pagination?.totalPages || 1);
+        setTotalRecords(res.pagination?.total || 0);
+      } else {
+        toast.error(res?.message || "Failed to load users");
+      }
     } catch {
       toast.error("Server error while fetching users");
     } finally {
@@ -52,42 +95,36 @@ const AdminUsersPage = () => {
 
   useEffect(() => {
     fetchUsers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, rowsPerPage, search, filters]);
+
+  // Fetch filter dropdown options once on mount using getAllUsers itself
+  // (large limit, no search/filters, so we get the full distinct set)
+  useEffect(() => {
+    if (didInitFetchOptions.current) return;
+    didInitFetchOptions.current = true;
+
+    const fetchOptions = async () => {
+      try {
+        const res = await getAllUsers({ page: 1, limit: 1000, search: "", role: "", department: "", designation: "" });
+        if (res?.success) {
+          const roles = [...new Set(res.users.map((u) => u.role))].filter(Boolean).sort();
+          const departments = [...new Set(res.users.map((u) => u.department))].filter(Boolean).sort();
+          const designations = [...new Set(res.users.map((u) => u.designation))].filter(Boolean).sort();
+          setFilterOptions({ roles, departments, designations });
+        }
+      } catch {
+        // Non-critical — filter dropdowns just won't populate
+      }
+    };
+
+    fetchOptions();
   }, []);
 
-  const options = useMemo(() => {
-    const roles = [...new Set(users.map((u) => u.role))].sort();
-    const departments = [...new Set(users.map((u) => u.department))].sort();
-    const designations = [...new Set(users.map((u) => u.designation))].sort();
-    return { roles, departments, designations };
-  }, [users]);
-
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return users
-      .filter((u) => u._id !== user._id)
-      .filter(
-        (u) =>
-          (!filters.role || u.role === filters.role) &&
-          (!filters.department || u.department === filters.department) &&
-          (!filters.designation || u.designation === filters.designation)
-      )
-      .filter((u) => {
-        if (!q) return true;
-        const haystack = [
-          u.name,
-          u.email,
-          u.mobile,
-          u.alternateMobile,
-          u.address,
-          u.designation,
-        ]
-          .filter(Boolean)
-          .join(" ")
-          .toLowerCase();
-        return haystack.includes(q);
-      })
-      .map((u) => ({ ...u, actions: "" }));
-  }, [users, search, filters, user]);
+  const handleApplyFilters = (newFilters) => {
+    setPage(1); // reset to page 1 whenever filters change
+    setFilters(newFilters);
+  };
 
   const handleSaveUser = async (formData, mode) => {
     try {
@@ -114,7 +151,12 @@ const AdminUsersPage = () => {
       const res = await deleteUserApi(deleteUser._id);
       if (res?.success) {
         toast.success("User deleted");
-        fetchUsers();
+        // If we just deleted the last row on a page > 1, step back a page
+        if (users.length === 1 && page > 1) {
+          setPage((p) => p - 1);
+        } else {
+          fetchUsers();
+        }
       } else toast.error(res?.message || "Delete failed");
     } catch {
       toast.error("Server error deleting user");
@@ -129,11 +171,10 @@ const AdminUsersPage = () => {
       const res = await toggleUserStatus(userId, newStatus);
 
       if (res?.success) {
-        toast.success(`User ${newStatus ? 'activated' : 'deactivated'} successfully`);
-        // Optimistic update or fetch
-        setUsers(users.map(u =>
-          u._id === userId ? { ...u, isActive: newStatus } : u
-        ));
+        toast.success(`User ${newStatus ? "activated" : "deactivated"} successfully`);
+        setUsers((prev) =>
+          prev.map((u) => (u._id === userId ? { ...u, isActive: newStatus } : u))
+        );
       } else {
         toast.error(res?.message || "Failed to update status");
       }
@@ -202,20 +243,20 @@ const AdminUsersPage = () => {
     },
   ];
 
+  const tableData = users.map((u) => ({ ...u, actions: "" }));
+
   return (
     <div className="p-4 sm:p-6 space-y-6 bg-[#F3F8FB] min-h-screen max-w-full overflow-x-hidden">
-      {/* Header */}
       <h1 className="text-xl sm:text-2xl font-semibold text-gray-800">Users</h1>
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        {/* Mobile: Search + Toggle */}
         <div className="flex items-center gap-2 w-full">
           <div className="relative flex-1 min-w-0">
             <input
               type="text"
               placeholder="Search name, email, phone..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
               className="w-full rounded-lg border border-gray-300 px-4 py-2 pl-10 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 truncate"
             />
             <Search
@@ -232,7 +273,6 @@ const AdminUsersPage = () => {
           </button>
         </div>
 
-        {/* Desktop Controls */}
         <div className="hidden sm:flex items-center gap-2">
           <button
             onClick={() => setFilterOpen(true)}
@@ -251,7 +291,6 @@ const AdminUsersPage = () => {
         </div>
       </div>
 
-      {/* Mobile Filters (Full Width, Single Row) */}
       {mobileMenuOpen && (
         <div className="sm:hidden grid grid-cols-1 gap-3 pb-4 border-b border-gray-200">
           <button
@@ -277,12 +316,11 @@ const AdminUsersPage = () => {
         </div>
       )}
 
-      {/* Table - Perfectly Centered & No Overflow */}
       {loading ? (
         <div className="bg-white rounded-2xl shadow p-10 text-center text-gray-500">
           Loading users...
         </div>
-      ) : filtered.length === 0 ? (
+      ) : tableData.length === 0 ? (
         <div className="bg-white rounded-2xl shadow p-10 text-center text-gray-500">
           No users found
         </div>
@@ -292,23 +330,31 @@ const AdminUsersPage = () => {
             <div className="inline-block min-w-full align-middle">
               <CustomTable
                 columns={columns}
-                data={filtered}
-                defaultRowsPerPage={10}
-                footerLegend={[]}
+                data={tableData}
                 onRowClick={(row) => setViewUser(row)}
+                footerLegend={[]}
+                // Controlled (server-side) pagination
+                currentPage={page}
+                totalPages={totalPages}
+                totalRecords={totalRecords}
+                rowsPerPage={rowsPerPage}
+                onPageChange={(newPage) => setPage(newPage)}
+                onRowsPerPageChange={(newLimit) => {
+                  setRowsPerPage(newLimit);
+                  setPage(1);
+                }}
               />
             </div>
           </div>
         </div>
       )}
 
-      {/* Modals */}
       <AdminUserFilterModal
         open={filterOpen}
         onClose={() => setFilterOpen(false)}
         initialFilters={filters}
-        onApply={setFilters}
-        options={options}
+        onApply={handleApplyFilters}
+        options={filterOptions}
       />
 
       <UserDetailsModal

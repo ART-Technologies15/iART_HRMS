@@ -3,10 +3,10 @@ import { Search, SlidersHorizontal, Users, X } from "lucide-react";
 import PhoneBookCard from "../components/PhoneBookCard";
 import AdminUserFilterModal from "../components/AdminUserFilterModal";
 import UserDetailsModal from "../components/UserDetailsModal";
-import { getAllUsers } from "../api/authApi";
+import { getPhoneBook } from "../api/authApi";
 import { useAuth } from "../context/AuthContext";
 
-const PER_PAGE = 20;
+const PER_PAGE = 10;
 
 // ── Skeleton card (mirrors PhoneBookCard's layout so content doesn't
 //    jump/reflow once real data swaps in) ───────────────────────────────────
@@ -59,7 +59,7 @@ const PhoneBookPage = () => {
       if (reset) setInitialLoading(true);
       else setLoadingMore(true);
 
-      const res = await getAllUsers({
+      const res = await getPhoneBook({
         page: pageToFetch,
         limit: PER_PAGE,
         search,

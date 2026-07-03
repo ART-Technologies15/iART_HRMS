@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight, ChevronsUpDown } from "lucide-react";
 const CustomTable = ({
   columns = [],
   data = [],
-  rowsPerPageOptions = [5, 10, 20],
+  rowsPerPageOptions = [5, 10, 15, 20],
   defaultRowsPerPage = 10,
   onRowClick = null,
   footerLegend = [],

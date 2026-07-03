@@ -11,7 +11,7 @@ const Header = ({ user, sidebarOpen, setSidebarOpen }) => {
       <div className="flex items-center gap-3">
         {/* Toggle (only visible on mobile) */}
         <button
-          className="p-2 rounded-md md:hidden hover:bg-gray-100 transition"
+          className="p-2 rounded-md lg:hidden hover:bg-gray-100 transition"
           onClick={() => setSidebarOpen(!sidebarOpen)}
         >
           {sidebarOpen ? (

@@ -251,18 +251,18 @@ const AttendanceReport = () => {
         </div>
       </div>
 
-      {!isRegularizationWindowOpen && (
-        <div className="flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
-          <div>
-            <p className="text-sm font-semibold text-amber-800">
-              Regularization Window Closed
-            </p>
-            <p className="text-sm text-amber-700 mt-1">
-              {nextWindowText}
-            </p>
-          </div>
+      {/* {!isRegularizationWindowOpen && ( */}
+      <div className="flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+        <div>
+          <p className="text-sm font-semibold text-amber-800">
+            Regularization Window Closed
+          </p>
+          <p className="text-sm text-amber-700 mt-1">
+            {nextWindowText}
+          </p>
         </div>
-      )}
+      </div>
+      {/* )} */}
 
       {/* ===== Table Section ===== */}
       <div className="bg-white rounded-2xl shadow p-4 border border-gray-100 overflow-x-auto">

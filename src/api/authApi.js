@@ -25,6 +25,11 @@ export const getAllUsers = async (params = {}) => {
   return res.data;
 };
 
+export const getPhoneBook = async (params = {}) => {
+  const res = await axiosInstance.get("/auth/getAllUsersPhoneBook", { params });
+  return res.data;
+};
+
 export const getProfileAccount = async (params = {}) => {
   const res = await axiosInstance.get("/auth/getProfile", { params });
   return res.data;
