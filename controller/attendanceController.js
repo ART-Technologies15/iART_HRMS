@@ -1768,10 +1768,13 @@ export const updateRegularization = async (req, res) => {
 };
 
 export const updateRegularizationByAdmin = async (req, res) => {
-  if (req.user.role !== "admin") {
+
+  const isAdminOrHr = ["admin", "hr"].includes(req.user.role);
+
+  if (!isAdminOrHr) {
     return res.status(403).json({
       success: false,
-      message: "Only admins can review regularization requests.",
+      message: "Only Admins and HR can review regularization requests.",
     });
   }
 
@@ -1985,20 +1988,35 @@ export const getAllRegularization = async (req, res) => {
       limit = 20,
     } = req.query;
 
-    const isAdmin = req.user.role === "admin";
+    const role = req.user.role;
+    const isAdminOrHR = role === "admin" || role === "hr";
+
+    // This endpoint is for reviewers only — employees viewing their own
+    // requests should hit a separate "my regularizations" route instead.
+    if (!isAdminOrHR) {
+      return res.status(403).json({
+        success: false,
+        message: "You are not authorized to view regularization requests.",
+      });
+    }
+
+    const ownId = new mongoose.Types.ObjectId(req.user._id);
     const match = {};
 
-    // Non-admins can only ever see their own requests
-    if (!isAdmin) {
-      match.userId = new mongoose.Types.ObjectId(req.user._id);
-    } else if (userId) {
+    if (userId) {
       if (!mongoose.isValidObjectId(userId)) {
         return res.status(400).json({
           success: false,
           message: "Invalid userId.",
         });
       }
-      match.userId = new mongoose.Types.ObjectId(userId);
+      // Combine the requested filter with the self-exclusion rule —
+      // if a reviewer explicitly asks for their own userId, $eq and $ne
+      // cancel each other out and correctly return nothing.
+      match.userId = { $eq: new mongoose.Types.ObjectId(userId), $ne: ownId };
+    } else {
+      // Never surface a reviewer's own regularization requests to them here
+      match.userId = { $ne: ownId };
     }
 
     if (status) {

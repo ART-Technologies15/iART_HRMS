@@ -331,6 +331,7 @@ export const getAllUsers = async (req, res) => {
     if (search) {
       const regex = new RegExp(search, "i");
       query.$or = [
+        { employeeId: regex },
         { name: regex },
         { email: regex },
         { mobile: regex },
