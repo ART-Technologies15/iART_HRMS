@@ -12,12 +12,14 @@ import PhoneBookPage from "./pages/PhoneBookPage";
 import { ToastContainer } from "react-toastify";
 
 import { PublicRoute, PrivateRoute } from "./routes/RouteGuard";
-import { AdminRoute, EmployeeRoute } from "./routes/RoleRoute";
+import { AdminHrRoute, AdminRoute, EmployeeRoute, HrRoute } from "./routes/RoleRoute";
 import YearCalendar from "./pages/Calendar";
 import DashboardRouter from "./routes/DashboardRouter";
 import AdminMonthlyAttendance from "./pages/AdminMonthlyAttendance";
 import Notification from "./pages/Notification";
 import Regularization from "./pages/Regularization";
+import AdminAssestsPage from "./pages/AdminAssestsPage";
+import MyAssetsPage from "./pages/MyAssetsPage";
 
 const App = () => {
   return (
@@ -53,6 +55,22 @@ const App = () => {
               <EmployeeRoute>
                 <AttendanceReport />
               </EmployeeRoute>
+            }
+          />
+          <Route
+            path="/my-assests"
+            element={
+              <EmployeeRoute>
+                <MyAssetsPage />
+              </EmployeeRoute>
+            }
+          />
+          <Route
+            path="/my-assests"
+            element={
+              <HrRoute>
+                <MyAssetsPage />
+              </HrRoute>
             }
           />
           <Route path="/phone-book" element={<PhoneBookPage />} />
@@ -101,9 +119,17 @@ const App = () => {
           <Route
             path="/regularization"
             element={
-              <AdminRoute>
+              <AdminHrRoute>
                 <Regularization />
-              </AdminRoute>
+              </AdminHrRoute>
+            }
+          />
+          <Route
+            path="/assests"
+            element={
+              <AdminHrRoute>
+                <AdminAssestsPage />
+              </AdminHrRoute>
             }
           />
         </Route>

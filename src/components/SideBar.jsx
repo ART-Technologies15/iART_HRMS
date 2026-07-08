@@ -12,7 +12,8 @@ import {
   Logs,
   CalendarDays,
   Megaphone,
-  LucideCalendarCheck2
+  LucideCalendarCheck2,
+  LaptopMinimalCheck,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
@@ -44,6 +45,17 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, user }) => {
         >
           <LayoutDashboard className="w-5 h-5" /> Dashboard
         </NavLink>
+
+        {/* Employee only */}
+        {!isAdmin && (
+          <NavLink
+            to="/attendance"
+            onClick={() => setSidebarOpen(false)}
+            className={linkClasses}
+          >
+            <BarChart2 className="w-5 h-5" /> My Attendance
+          </NavLink>
+        )}
 
         {/* Admin only */}
         {isAdmin && (
@@ -91,7 +103,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, user }) => {
         )}
 
         {/* HR and Admin only */}
-        {(isAdmin) && (
+        {(isAdmin || isHr) && (
           <NavLink
             to="/regularization"
             onClick={() => setSidebarOpen(false)}
@@ -101,14 +113,24 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, user }) => {
           </NavLink>
         )}
 
-        {/* Employee only */}
-        {!isAdmin && (
+        {(isAdmin || isHr) && (
           <NavLink
-            to="/attendance"
+            to="/assests"
             onClick={() => setSidebarOpen(false)}
             className={linkClasses}
           >
-            <BarChart2 className="w-5 h-5" /> My Attendance
+            <LaptopMinimalCheck className="w-5 h-5" /> Assests
+          </NavLink>
+        )}
+
+        {/* Employee only */}
+        {!isAdmin && (
+          <NavLink
+            to="/my-assests"
+            onClick={() => setSidebarOpen(false)}
+            className={linkClasses}
+          >
+            <LaptopMinimalCheck className="w-5 h-5" />My Assests
           </NavLink>
         )}
 

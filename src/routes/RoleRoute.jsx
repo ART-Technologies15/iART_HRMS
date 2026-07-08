@@ -24,3 +24,16 @@ export const EmployeeRoute = ({ children }) => {
   toast.error("This page is only for employees.");
   return <Navigate to="/dashboard" replace />;
 };
+
+export const AdminHrRoute = ({ children }) => {
+  const user = JSON.parse(localStorage.getItem("user"));
+
+  const allowedRoles = ["admin", "hr"];
+
+  if (allowedRoles.includes(user?.role)) {
+    return children;
+  }
+
+  toast.error("Access denied. Admin or HR only.");
+  return <Navigate to="/dashboard" replace />;
+};

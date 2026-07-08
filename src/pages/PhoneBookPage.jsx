@@ -140,9 +140,8 @@ const PhoneBookPage = () => {
               <p className="text-sm text-gray-500 mt-0.5">
                 {initialLoading
                   ? "Loading directory…"
-                  : `${users.length}${hasMore ? "+" : ""} ${
-                      users.length === 1 ? "person" : "people"
-                    }`}
+                  : `${users.length}${hasMore ? "+" : ""} ${users.length === 1 ? "person" : "people"
+                  }`}
               </p>
             </div>
 

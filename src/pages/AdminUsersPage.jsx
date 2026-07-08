@@ -13,8 +13,12 @@ import {
   deleteUser as deleteUserApi,
   toggleUserStatus,
 } from "../api/authApi";
+import {
+  getEmployeeAssets
+} from "../api/assetsApi";
 import { toast } from "react-toastify";
 import { useAuth } from "../context/AuthContext";
+import EmployeeAssetsModal from "../components/EmployeeAssetsModal";
 
 const AdminUsersPage = () => {
   const navigate = useNavigate();
@@ -35,7 +39,7 @@ const AdminUsersPage = () => {
 
   // Server pagination state
   const [page, setPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [rowsPerPage, setRowsPerPage] = useState(20);
   const [totalPages, setTotalPages] = useState(1);
   const [totalRecords, setTotalRecords] = useState(0);
 
@@ -51,6 +55,9 @@ const AdminUsersPage = () => {
   const [deleteUser, setDeleteUser] = useState(null);
   const [saving, setSaving] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const [employeeAssetsOpen, setEmployeeAssetsOpen] = useState(false);
+  const [selectedEmployee, setSelectedEmployee] = useState(null);
 
   // Guard against double-invoke on mount (React StrictMode / effect re-fire)
   const didInitFetchOptions = useRef(false);
@@ -184,7 +191,35 @@ const AdminUsersPage = () => {
   };
 
   const columns = [
-    { label: "Name", accessor: "name" },
+    {
+      label: "Name",
+      accessor: "name",
+      render: (_, row) => (
+        <div className="flex items-center gap-3 min-w-[220px]">
+          {row.profilePhoto ? (
+            <img
+              src={row.profilePhoto}
+              alt={row.name}
+              className="h-10 w-10 rounded-full object-cover border border-slate-200"
+            />
+          ) : (
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-sm font-semibold text-blue-700 border border-blue-200">
+              {row.name?.charAt(0)?.toUpperCase() || "U"}
+            </div>
+          )}
+
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold text-slate-800">
+              {row.name}
+            </p>
+
+            <span className="mt-1 inline-flex w-fit rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700">
+              {row.employeeId}
+            </span>
+          </div>
+        </div>
+      ),
+    },
     { label: "Email", accessor: "email" },
     { label: "Phone", accessor: "mobile" },
     { label: "Designation", accessor: "designation" },
@@ -228,6 +263,16 @@ const AdminUsersPage = () => {
             }}
           >
             Attendance
+          </button>
+          <button
+            className="px-2 py-1 text-xs bg-violet-600 text-white rounded whitespace-nowrap cursor-pointer"
+            onClick={(e) => {
+              e.stopPropagation();
+              setSelectedEmployee(row);
+              setEmployeeAssetsOpen(true);
+            }}
+          >
+            Assets
           </button>
           <button
             className="px-2 py-1 text-xs bg-red-600 text-white rounded whitespace-nowrap cursor-pointer"
@@ -378,6 +423,14 @@ const AdminUsersPage = () => {
         title="Delete User"
         message={`This action cannot be undone. Are you sure you want to delete ${deleteUser?.name}?`}
         onConfirm={handleDeleteUser}
+      />
+      <EmployeeAssetsModal
+        open={employeeAssetsOpen}
+        onClose={() => {
+          setEmployeeAssetsOpen(false);
+          setSelectedEmployee(null);
+        }}
+        employee={selectedEmployee}
       />
     </div>
   );
