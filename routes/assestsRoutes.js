@@ -22,7 +22,7 @@ router.get("/dashboard", protect, getAssetDashboard);
 ========================================================== */
 router.post("/", protect, createAsset);
 router.get("/", protect, getAllAssets);
-router.get("/:id", protect, getAssetById);
+router.get("/:id", getAssetById);
 router.put("/:id", protect, updateAsset);
 router.delete("/:id", protect, deleteAsset);
 router.patch("/toggle-status/:id", protect, toggleAssetStatus);

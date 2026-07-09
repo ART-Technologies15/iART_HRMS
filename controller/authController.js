@@ -320,6 +320,7 @@ export const getAllUsers = async (req, res) => {
       role = "",
       department = "",
       designation = "",
+      isActive = "",
     } = req.query;
 
     // Build search query
@@ -344,6 +345,11 @@ export const getAllUsers = async (req, res) => {
     if (role) query.role = role;
     if (department) query.department = department;
     if (designation) query.designation = designation;
+
+    if (isActive !== "") {
+      query.isActive = isActive === "true";
+    }
+
 
     const skip = (Number(page) - 1) * Number(limit);
 

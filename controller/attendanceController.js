@@ -9,6 +9,7 @@ import Leave from "../models/Leaves.js"; // import Leave model
 import Regularization from "../models/Regularization.js";
 import MailService from "../services/mailService.js";
 import LeaveBalanceHistory from "../models/LeaveBalanceHistory.js";
+import AttendanceAudit from "../models/AttendanceAudit.js";
 
 const ONTIME_THRESHOLD_MINUTES = 10 * 60; // 10:00 AM / 600 mins
 
@@ -188,10 +189,10 @@ export const punchOut = async (req, res) => {
 
 export const updateAttendance = async (req, res) => {
   try {
-    if (req.user.role !== "admin") {
+    if (!["admin", "hr"].includes(req.user.role)) {
       return res.status(403).json({
         success: false,
-        message: "Only admins can update attendance records.",
+        message: "Only Admin and HR can update attendance records.",
       });
     }
 
@@ -201,6 +202,17 @@ export const updateAttendance = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "userId and date are required.",
+      });
+    }
+
+    // HR cannot edit their own attendance
+    if (
+      ["admin", "hr"].includes(req.user.role) &&
+      req.user._id.toString() === userId.toString()
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "You cannot modify your own attendance.",
       });
     }
 
@@ -268,6 +280,28 @@ export const updateAttendance = async (req, res) => {
       moment(r.date).isSame(targetDate, "day")
     );
 
+    const recordExists = !!record;
+
+    // Store previous values BEFORE making any changes
+    const previousPunchIn = record?.punchIn ?? null;
+    const previousPunchOut = record?.punchOut ?? null;
+
+    // New values coming from request
+    const newPunchInDate = punchIn ? new Date(punchIn) : null;
+    const newPunchOutDate = punchOut ? new Date(punchOut) : null;
+
+    // Check if anything actually changed
+    const attendanceChanged =
+      previousPunchIn?.getTime() !== newPunchInDate?.getTime() ||
+      previousPunchOut?.getTime() !== newPunchOutDate?.getTime();
+
+    if (!attendanceChanged) {
+      return res.status(400).json({
+        success: false,
+        message: "No changes detected.",
+      });
+    }
+
     if (!record) {
       const punchInDate = punchIn ? new Date(punchIn) : null;
       const punchOutDate = punchOut ? new Date(punchOut) : null;
@@ -304,6 +338,33 @@ export const updateAttendance = async (req, res) => {
     updateMonthlySummary(attendanceDoc, targetDate);
 
     await attendanceDoc.save();
+
+    await AttendanceAudit.create({
+      attendanceId: attendanceDoc._id,
+      attendanceRecordId: record._id,
+      employeeId: userId,
+
+      updatedBy: req.user._id,
+      updaterRole: req.user.role,
+
+      action: isClearRequest
+        ? "Cleared"
+        : recordExists ? "Updated" : "Created",
+
+      previousPunchIn,
+      previousPunchOut,
+
+      newPunchIn: record.punchIn,
+      newPunchOut: record.punchOut,
+
+      remarks: req.body.remarks || "",
+
+      ipAddress:
+        req.headers["x-forwarded-for"]?.split(",")[0] ||
+        req.socket.remoteAddress ||
+        req.ip,
+      userAgent: req.headers["user-agent"]
+    });
 
     return res.status(200).json({
       success: true,
@@ -345,12 +406,13 @@ export const getAttendanceRecord = async (req, res) => {
     let { month, year, startDate, endDate } = req.query;
 
     // Authorization
-    if (req.user.role !== "admin" && req.user._id.toString() !== userId) {
-      return res.status(403).json({
-        success: false,
-        message: "You are not authorized to view this record.",
-      });
-    }
+  //  if (req.user.role !== "admin" && req.user._id.toString() !== userId) {
+  //     return res.status(403).json({
+  //       success: false,
+  //       message: "You are not authorized to view this record.",
+  //     });
+  //   }
+
 
     const nowIST = moment().utcOffset("+05:30");
     const hasRange = startDate || endDate;
@@ -617,12 +679,12 @@ export const getMonthlyWorkingHours = async (req, res) => {
     const { userId } = req.params;
     const { month, year } = req.query;
 
-    if (req.user.role !== "admin" && req.user._id.toString() !== userId) {
-      return res.status(403).json({
-        success: false,
-        message: "You are not authorized to view this data.",
-      });
-    }
+    // if (!["admin", "hr"].includes(req.user.role)) {
+    //   return res.status(403).json({
+    //     success: false,
+    //     message: "Only Admin and HR can update attendance records.",
+    //   });
+    // }
 
     const nowIST = moment().utcOffset("+05:30");
     const targetMonth = month ? parseInt(month, 10) : nowIST.month() + 1; // 1..12
@@ -672,12 +734,12 @@ export const getOntimeandOnLatePercentage = async (req, res) => {
     const { userId } = req.params;
     const { month, year } = req.query;
 
-    if (req.user.role !== "admin" && req.user._id.toString() !== userId) {
-      return res.status(403).json({
-        success: false,
-        message: "You are not authorized to view this data.",
-      });
-    }
+    // if (!["admin", "hr"].includes(req.user.role)) {
+    //   return res.status(403).json({
+    //     success: false,
+    //     message: "Only Admin and HR can update attendance records.",
+    //   });
+    // }
 
     const nowIST = moment().utcOffset("+05:30");
     const targetMonth = month ? parseInt(month, 10) : nowIST.month() + 1;
