@@ -1,10 +1,12 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Search, SlidersHorizontal, Plus, Menu } from "lucide-react";
+import { Search, SlidersHorizontal, Plus, Menu, QrCode, Download, Loader2 } from "lucide-react";
 import CustomTable from "../components/CustomTable";
 import AssetDetailsModal from "../components/AssetDetailsModal";
 import AssetFilterModal from "../components/AssetFilterModal";
 import AssetFormModal from "../components/AssetFormModal";
 import AssetAssignModal from "../components/AssetAssignModal";
+import AssetQRModal from "../components/AssetQRModal";
+import DownloadAllQrModal from "../components/DownloadAllQrModal";
 import ConfirmDeleteModal from "../components/ConfirmDeleteModal";
 import {
     getAllAssets,
@@ -13,7 +15,8 @@ import {
     deleteAsset as deleteAssetApi,
     assignAsset,
     returnAsset,
-    toggleAssetStatus
+    toggleAssetStatus,
+    getAssetById
 } from "../api/assetsApi";
 import { getAllUsers } from "../api/authApi";
 import { toast } from "react-toastify";
@@ -74,6 +77,14 @@ const AdminAssetsPage = () => {
     const [assignTarget, setAssignTarget] = useState(null); // asset row being assigned
     const [returnTarget, setReturnTarget] = useState(null); // asset row being returned
     const [deleteTarget, setDeleteTarget] = useState(null);
+    const [qrTarget, setQrTarget] = useState(null); // asset row whose QR is being viewed
+
+    // Bulk QR download — assets are fetched fresh (ignoring pagination)
+    // right before the confirm modal opens, so the count shown matches
+    // whatever the current search/filters/tab would return in full.
+    const [downloadAllOpen, setDownloadAllOpen] = useState(false);
+    const [allAssetsForQr, setAllAssetsForQr] = useState([]);
+    const [fetchingAllForQr, setFetchingAllForQr] = useState(false);
 
     const [saving, setSaving] = useState(false);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -246,6 +257,38 @@ const AdminAssetsPage = () => {
         }
     };
 
+    // Fetches every asset matching the current search/filters/tab (ignoring
+    // pagination) so the bulk QR PDF covers the full matching set, not just
+    // whatever's on the current page.
+    const handleOpenDownloadAll = async () => {
+        try {
+            setFetchingAllForQr(true);
+            const activeFilterValue =
+                activeTab === "active" ? true : activeTab === "inactive" ? false : "";
+
+            const res = await getAllAssets({
+                page: 1,
+                limit: 5000,
+                search,
+                category: filters.category,
+                status: filters.status,
+                condition: filters.condition,
+                isActive: activeFilterValue,
+            });
+
+            if (res?.success) {
+                setAllAssetsForQr(res.assets || res.data || []);
+                setDownloadAllOpen(true);
+            } else {
+                toast.error(res?.message || "Failed to load assets for QR export");
+            }
+        } catch {
+            toast.error("Server error while preparing QR export");
+        } finally {
+            setFetchingAllForQr(false);
+        }
+    };
+
     const columns = [
         { label: "Asset Code", accessor: "assetCode" },
         { label: "Name", accessor: "assetName" },
@@ -353,6 +396,16 @@ const AdminAssetsPage = () => {
                         Edit
                     </button>
 
+                    <button
+                        className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-slate-700 text-white rounded whitespace-nowrap cursor-pointer"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setQrTarget(row);
+                        }}
+                    >
+                        <QrCode size={12} /> QR
+                    </button>
+
                     {row.status === "Available" && (
                         <button
                             className="px-2 py-1 text-xs bg-indigo-600 text-white rounded whitespace-nowrap cursor-pointer"
@@ -435,6 +488,14 @@ const AdminAssetsPage = () => {
                         Clear Filter
                     </button>
                     <button
+                        onClick={handleOpenDownloadAll}
+                        disabled={fetchingAllForQr}
+                        className="inline-flex items-center gap-2 bg-white border border-gray-300 px-3 py-2 rounded-lg text-sm hover:bg-gray-50 whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                        {fetchingAllForQr ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+                        Download All QR
+                    </button>
+                    <button
                         onClick={() => setFormOpen(true)}
                         className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm flex items-center gap-1 whitespace-nowrap"
                     >
@@ -477,6 +538,26 @@ const AdminAssetsPage = () => {
                     >
                         <SlidersHorizontal size={16} />
                         Filters
+                    </button>
+                    <button
+                        onClick={() => {
+                            handleClearFilters();
+                            setMobileMenuOpen(false);
+                        }}
+                        className="w-full bg-white border border-gray-300 px-3 py-2 rounded-lg text-sm hover:bg-gray-50"
+                    >
+                        Clear Filter
+                    </button>
+                    <button
+                        onClick={async () => {
+                            await handleOpenDownloadAll();
+                            setMobileMenuOpen(false);
+                        }}
+                        disabled={fetchingAllForQr}
+                        className="w-full inline-flex justify-center items-center gap-2 bg-white border border-gray-300 px-3 py-2 rounded-lg text-sm hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                        {fetchingAllForQr ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+                        Download All QR
                     </button>
                     <button
                         onClick={() => {
@@ -555,6 +636,14 @@ const AdminAssetsPage = () => {
                 asset={returnTarget}
                 employees={employees}
                 loading={saving}
+            />
+
+            <AssetQRModal open={!!qrTarget} onClose={() => setQrTarget(null)} asset={qrTarget} />
+
+            <DownloadAllQrModal
+                open={downloadAllOpen}
+                onClose={() => setDownloadAllOpen(false)}
+                assets={allAssetsForQr}
             />
 
             <ConfirmDeleteModal

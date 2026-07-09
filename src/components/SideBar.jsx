@@ -14,6 +14,7 @@ import {
   Megaphone,
   LucideCalendarCheck2,
   LaptopMinimalCheck,
+  ChartCandlestick
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
@@ -57,16 +58,21 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, user }) => {
           </NavLink>
         )}
 
+        {/* HR and Admin only */}
+        {(isAdmin || isHr) && (
+          <NavLink
+            to="/users"
+            onClick={() => setSidebarOpen(false)}
+            className={linkClasses}
+          >
+            <Users className="w-5 h-5" /> Users
+          </NavLink>
+        )}
+
         {/* Admin only */}
         {isAdmin && (
           <>
-            <NavLink
-              to="/users"
-              onClick={() => setSidebarOpen(false)}
-              className={linkClasses}
-            >
-              <Users className="w-5 h-5" /> Users
-            </NavLink>
+
             <NavLink
               to="/today-attendance"
               onClick={() => setSidebarOpen(false)}
@@ -115,22 +121,22 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, user }) => {
 
         {(isAdmin || isHr) && (
           <NavLink
-            to="/assests"
+            to="/assets"
             onClick={() => setSidebarOpen(false)}
             className={linkClasses}
           >
-            <LaptopMinimalCheck className="w-5 h-5" /> Assests
+            <LaptopMinimalCheck className="w-5 h-5" /> Assets
           </NavLink>
         )}
 
         {/* Employee only */}
         {!isAdmin && (
           <NavLink
-            to="/my-assests"
+            to="/my-assets"
             onClick={() => setSidebarOpen(false)}
             className={linkClasses}
           >
-            <LaptopMinimalCheck className="w-5 h-5" />My Assests
+            <ChartCandlestick className="w-5 h-5" />My Assets
           </NavLink>
         )}
 

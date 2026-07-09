@@ -20,6 +20,7 @@ import Notification from "./pages/Notification";
 import Regularization from "./pages/Regularization";
 import AdminAssestsPage from "./pages/AdminAssestsPage";
 import MyAssetsPage from "./pages/MyAssetsPage";
+import PublicAssetPage from "./pages/PublicAssetPage";
 
 const App = () => {
   return (
@@ -27,6 +28,9 @@ const App = () => {
       <ToastContainer position="top-center" autoClose={3000} />
 
       <Routes>
+        {/* Public Asset QR Route */}
+        <Route path="/asset/:assetId" element={<PublicAssetPage />} />
+
         {/* Public (Login only when logged out) */}
         <Route
           path="/"
@@ -58,7 +62,7 @@ const App = () => {
             }
           />
           <Route
-            path="/my-assests"
+            path="/my-assets"
             element={
               <EmployeeRoute>
                 <MyAssetsPage />
@@ -66,7 +70,7 @@ const App = () => {
             }
           />
           <Route
-            path="/my-assests"
+            path="/my-assets"
             element={
               <HrRoute>
                 <MyAssetsPage />
@@ -75,13 +79,13 @@ const App = () => {
           />
           <Route path="/phone-book" element={<PhoneBookPage />} />
           <Route path="/calendar" element={<YearCalendar />} />
-          {/* Admin only */}
+          {/* Admin and HR only */}
           <Route
             path="/users"
             element={
-              <AdminRoute>
+              <AdminHrRoute>
                 <AdminUsersPage />
-              </AdminRoute>
+              </AdminHrRoute>
             }
           />
           <Route
@@ -103,9 +107,9 @@ const App = () => {
           <Route
             path="/user-attendance"
             element={
-              <AdminRoute>
+              <AdminHrRoute>
                 <AdminAttendanceReport />
-              </AdminRoute>
+              </AdminHrRoute>
             }
           />
           <Route
@@ -116,6 +120,8 @@ const App = () => {
               </AdminRoute>
             }
           />
+
+          {/* Admin and HR only */}
           <Route
             path="/regularization"
             element={
@@ -125,7 +131,7 @@ const App = () => {
             }
           />
           <Route
-            path="/assests"
+            path="/assets"
             element={
               <AdminHrRoute>
                 <AdminAssestsPage />

@@ -68,8 +68,8 @@ const PhoneBookCard = ({ user, onClick }) => {
           {user.isActive !== undefined && (
             <span
               className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${user.isActive
-                  ? "bg-green-100 text-green-700"
-                  : "bg-gray-100 text-gray-600"
+                ? "bg-green-100 text-green-700"
+                : "bg-gray-100 text-gray-600"
                 }`}
             >
               {user.isActive ? "Active" : "Inactive"}
@@ -80,11 +80,6 @@ const PhoneBookCard = ({ user, onClick }) => {
         <div className="text-gray-600 flex items-center justify-center xs:justify-start gap-1 truncate">
           <Briefcase size={14} className="shrink-0" />
           <span className="truncate">{user.designation}</span>
-        </div>
-
-        <div className="text-gray-600 flex items-center justify-center xs:justify-start gap-1">
-          <CalendarDays size={14} className="shrink-0" />
-          <span className="truncate">Joined: {formatDate(user.joiningDate)}</span>
         </div>
 
         <div className="text-gray-600 flex items-center justify-center xs:justify-start gap-1">
@@ -112,6 +107,11 @@ const PhoneBookCard = ({ user, onClick }) => {
           <span className="truncate">
             {user.department} • {user.role}
           </span>
+        </div>
+
+        <div className="text-gray-600 flex items-center justify-center xs:justify-start gap-1">
+          <CalendarDays size={14} className="shrink-0" />
+          <span className="truncate">Joined: {formatDate(user.joiningDate)}</span>
         </div>
 
         {loggedInUser.role === "admin" && (

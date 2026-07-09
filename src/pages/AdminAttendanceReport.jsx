@@ -40,8 +40,16 @@ const AdminAttendanceReport = () => {
   const navigate = useNavigate();
 
   const [search, setSearch] = useState("");
-  const [fromDate, setFromDate] = useState("");
-  const [toDate, setToDate] = useState("");
+
+  // const [fromDate, setFromDate] = useState("");
+  // const [toDate, setToDate] = useState("");
+  const [fromDate, setFromDate] = useState(() => {
+    const from = new Date();
+    from.setDate(from.getDate() - 6);
+    return from.toISOString().slice(0, 10);
+  });
+  const [toDate, setToDate] = useState(() => new Date().toISOString().slice(0, 10));
+
   const [rows, setRows] = useState([]);
   const [editRow, setEditRow] = useState(null);
   const [deleteRow, setDeleteRow] = useState(null);
@@ -134,15 +142,15 @@ const AdminAttendanceReport = () => {
           date: new Date(a.date).toLocaleDateString("en-GB"),
           timeIn: a.punchIn
             ? new Date(a.punchIn).toLocaleTimeString("en-US", {
-                hour: "2-digit",
-                minute: "2-digit",
-              })
+              hour: "2-digit",
+              minute: "2-digit",
+            })
             : "-",
           timeOut: a.punchOut
             ? new Date(a.punchOut).toLocaleTimeString("en-US", {
-                hour: "2-digit",
-                minute: "2-digit",
-              })
+              hour: "2-digit",
+              minute: "2-digit",
+            })
             : "-",
           workingHours: a.totalHours ? await formatSeconds(a.totalHours) : "0S",
           status: a.status,
@@ -173,9 +181,8 @@ const AdminAttendanceReport = () => {
         render: (value, row) => (
           <div className="flex items-center gap-2">
             <span
-              className={`w-3 h-3 rounded-full ${
-                row.onTime ? "bg-green-500" : "bg-orange-500"
-              }`}
+              className={`w-3 h-3 rounded-full ${row.onTime ? "bg-green-500" : "bg-orange-500"
+                }`}
             />
             {value}
           </div>
@@ -213,19 +220,19 @@ const AdminAttendanceReport = () => {
   const isNextDisabled = toDate === new Date().toISOString().slice(0, 10);
 
   // Initialize 7-day default on mount
-  useEffect(() => {
-    if (!fromDate && !toDate) {
-      const today = new Date();
-      const to = today.toISOString().slice(0, 10);
+  // useEffect(() => {
+  //   if (!fromDate && !toDate) {
+  //     const today = new Date();
+  //     const to = today.toISOString().slice(0, 10);
 
-      const from = new Date();
-      from.setDate(from.getDate() - 6);
-      const fromFormatted = from.toISOString().slice(0, 10);
+  //     const from = new Date();
+  //     from.setDate(from.getDate() - 6);
+  //     const fromFormatted = from.toISOString().slice(0, 10);
 
-      setFromDate(fromFormatted);
-      setToDate(to);
-    }
-  }, []);
+  //     setFromDate(fromFormatted);
+  //     setToDate(to);
+  //   }
+  // }, []);
 
   // ---------- filter client-side search
   const filtered = useMemo(() => {
@@ -436,11 +443,10 @@ const AdminAttendanceReport = () => {
           </button>
 
           <button
-            className={`px-3 py-1.5 rounded-md border text-sm ${
-              isNextDisabled
-                ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                : "bg-white hover:bg-gray-100"
-            }`}
+            className={`px-3 py-1.5 rounded-md border text-sm ${isNextDisabled
+              ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+              : "bg-white hover:bg-gray-100"
+              }`}
             onClick={() => shiftRange(7)}
             disabled={isNextDisabled}
           >

@@ -59,6 +59,8 @@ const AdminUsersPage = () => {
   const [employeeAssetsOpen, setEmployeeAssetsOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
 
+  const [activeTab, setActiveTab] = useState("all");
+
   // Guard against double-invoke on mount (React StrictMode / effect re-fire)
   const didInitFetchOptions = useRef(false);
 
@@ -77,6 +79,8 @@ const AdminUsersPage = () => {
   const fetchUsers = async () => {
     try {
       setLoading(true);
+      const activeFilterValue =
+        activeTab === "active" ? true : activeTab === "inactive" ? false : "";
       const res = await getAllUsers({
         page,
         limit: rowsPerPage,
@@ -84,6 +88,7 @@ const AdminUsersPage = () => {
         role: filters.role,
         department: filters.department,
         designation: filters.designation,
+        isActive: activeFilterValue,
       });
 
       if (res?.success) {
@@ -103,30 +108,35 @@ const AdminUsersPage = () => {
   useEffect(() => {
     fetchUsers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, rowsPerPage, search, filters]);
+  }, [page, rowsPerPage, search, filters, activeTab]);
 
   // Fetch filter dropdown options once on mount using getAllUsers itself
   // (large limit, no search/filters, so we get the full distinct set)
-  useEffect(() => {
-    if (didInitFetchOptions.current) return;
-    didInitFetchOptions.current = true;
+  // useEffect(() => {
+  //   if (didInitFetchOptions.current) return;
+  //   didInitFetchOptions.current = true;
 
-    const fetchOptions = async () => {
-      try {
-        const res = await getAllUsers({ page: 1, limit: 1000, search: "", role: "", department: "", designation: "" });
-        if (res?.success) {
-          const roles = [...new Set(res.users.map((u) => u.role))].filter(Boolean).sort();
-          const departments = [...new Set(res.users.map((u) => u.department))].filter(Boolean).sort();
-          const designations = [...new Set(res.users.map((u) => u.designation))].filter(Boolean).sort();
-          setFilterOptions({ roles, departments, designations });
-        }
-      } catch {
-        // Non-critical — filter dropdowns just won't populate
-      }
-    };
+  //   const fetchOptions = async () => {
+  //     try {
+  //       const res = await getAllUsers({ page: 1, limit: 1000, search: "", role: "", department: "", designation: "" });
+  //       if (res?.success) {
+  //         const roles = [...new Set(res.users.map((u) => u.role))].filter(Boolean).sort();
+  //         const departments = [...new Set(res.users.map((u) => u.department))].filter(Boolean).sort();
+  //         const designations = [...new Set(res.users.map((u) => u.designation))].filter(Boolean).sort();
+  //         setFilterOptions({ roles, departments, designations });
+  //       }
+  //     } catch {
+  //       // Non-critical — filter dropdowns just won't populate
+  //     }
+  //   };
 
-    fetchOptions();
-  }, []);
+  //   fetchOptions();
+  // }, []);
+
+  const handleActiveTabChange = (tab) => {
+    setPage(1);
+    setActiveTab(tab);
+  };
 
   const handleApplyFilters = (newFilters) => {
     setPage(1); // reset to page 1 whenever filters change
@@ -223,7 +233,15 @@ const AdminUsersPage = () => {
     { label: "Email", accessor: "email" },
     { label: "Phone", accessor: "mobile" },
     { label: "Designation", accessor: "designation" },
-    { label: "Role", accessor: "role" },
+    {
+      label: "Role",
+      accessor: "role",
+      render: (val) => (
+        <span>
+          {val?.toUpperCase() || "-"}
+        </span>
+      ),
+    },
     {
       label: "Active",
       accessor: "isActive",
@@ -274,15 +292,19 @@ const AdminUsersPage = () => {
           >
             Assets
           </button>
-          <button
-            className="px-2 py-1 text-xs bg-red-600 text-white rounded whitespace-nowrap cursor-pointer"
-            onClick={(e) => {
-              e.stopPropagation();
-              setDeleteUser(row);
-            }}
-          >
-            Delete
-          </button>
+          {
+            user?.role === "admin" && (
+              <button
+                className="px-2 py-1 text-xs bg-red-600 text-white rounded whitespace-nowrap cursor-pointer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setDeleteUser(row);
+                }}
+              >
+                Delete
+              </button>
+            )
+          }
         </div>
       ),
     },
@@ -334,6 +356,28 @@ const AdminUsersPage = () => {
             Add User
           </button>
         </div>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        {[
+          { key: "all", label: "All" },
+          { key: "active", label: "Active" },
+          { key: "inactive", label: "In Active" },
+        ].map((tab) => {
+          const isActive = activeTab === tab.key;
+          return (
+            <button
+              key={tab.key}
+              onClick={() => handleActiveTabChange(tab.key)}
+              className={`rounded-full px-3 py-1.5 text-sm font-medium transition cursor-pointer ${isActive
+                ? "bg-blue-600 text-white shadow-sm"
+                : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
+                }`}
+            >
+              {tab.label}
+            </button>
+          );
+        })}
       </div>
 
       {mobileMenuOpen && (
