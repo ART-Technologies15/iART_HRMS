@@ -1,5 +1,5 @@
 import express from "express";
-import { register, login, getAllUsers, getProfile, deleteUser, updateUser, toggleUserStatus, getAllUsersPhoneBook } from "../controller/authController.js";
+import { register, login, getAllUsers, getProfile, deleteUser, updateUser, getPendingVerificationRequests, reviewAllPendingVerification, reviewPendingVerification, toggleUserStatus, getAllUsersPhoneBook } from "../controller/authController.js";
 import { protect } from "../middleware/authMiddleware.js";
 import multer from "multer";
 
@@ -21,8 +21,11 @@ router.post("/login", login);
 router.get("/getAllUsers", protect, getAllUsers);
 router.get("/getAllUsersPhoneBook", protect, getAllUsersPhoneBook);
 router.get("/getProfile", protect, getProfile);
+router.get("/getPendingVerificationRequests", protect, getPendingVerificationRequests);
 router.delete("/:id", protect, deleteUser);
 router.put("/:id", protect, uploadFields, updateUser);
 router.patch("/users/:userId/status", protect, toggleUserStatus);
+router.patch("/actionPendingVerification/:id", protect, reviewPendingVerification);
+router.patch("/actionPendingVerification/:id/review-all", protect, reviewAllPendingVerification);
 
 export default router;

@@ -406,12 +406,12 @@ export const getAttendanceRecord = async (req, res) => {
     let { month, year, startDate, endDate } = req.query;
 
     // Authorization
-  //  if (req.user.role !== "admin" && req.user._id.toString() !== userId) {
-  //     return res.status(403).json({
-  //       success: false,
-  //       message: "You are not authorized to view this record.",
-  //     });
-  //   }
+    //  if (req.user.role !== "admin" && req.user._id.toString() !== userId) {
+    //     return res.status(403).json({
+    //       success: false,
+    //       message: "You are not authorized to view this record.",
+    //     });
+    //   }
 
 
     const nowIST = moment().utcOffset("+05:30");
@@ -543,6 +543,8 @@ export const getAttendanceRecord = async (req, res) => {
 
     const todayKey = nowIST.format("YYYY-MM-DD");
     const WORK_SECONDS = 8 * 3600;
+    const FOUR_HOURS = 4 * 60 * 60; // 14400 seconds
+    const SIX_HOURS = 6 * 60 * 60;  // 21600 seconds
 
     const data = days
       .map((d) => {
@@ -574,18 +576,30 @@ export const getAttendanceRecord = async (req, res) => {
           }
         }
 
+        // let attendanceStatus = "Absent";
+
+        // if (totalSeconds > 0) {
+        //   const percent = (totalSeconds / WORK_SECONDS) * 100;
+
+        //   if (percent < 40) {
+        //     attendanceStatus = "Absent";
+        //   } else if (percent < 81.25) {
+        //     attendanceStatus = "Present (Half Day)";
+        //   } else {
+        //     attendanceStatus = "Present (Full Day)";
+        //   }
+        // }
+
         let attendanceStatus = "Absent";
 
-        if (totalSeconds > 0) {
-          const percent = (totalSeconds / WORK_SECONDS) * 100;
+        // < 4 Hours = Absent
+        // 4 Hours to < 6 Hours = Half Day
+        // >= 6 Hours = Full Day
 
-          if (percent < 40) {
-            attendanceStatus = "Absent";
-          } else if (percent < 81.25) {
-            attendanceStatus = "Present (Half Day)";
-          } else {
-            attendanceStatus = "Present (Full Day)";
-          }
+        if (totalSeconds >= SIX_HOURS) {
+          attendanceStatus = "Present (Full Day)";
+        } else if (totalSeconds >= FOUR_HOURS) {
+          attendanceStatus = "Present (Half Day)";
         }
 
         // ===================================

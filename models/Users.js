@@ -3,6 +3,17 @@ import bcrypt from "bcryptjs";
 
 const userSchema = new mongoose.Schema(
   {
+    createdBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null
+    },
+
+    createdByRole: {
+      type: String,
+      default: null
+    },
+
     employeeId: {
       type: String,
       required: true,
@@ -83,6 +94,22 @@ const userSchema = new mongoose.Schema(
       default: null,
     },
 
+    isPanVerified: {
+      type: Boolean,
+      default: false
+    },
+
+    panVerifiedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+
+    panVerifiedAt: {
+      type: Date,
+      default: null,
+    },
+
     aadhaar: {
       type: String,
       unique: true,
@@ -94,6 +121,22 @@ const userSchema = new mongoose.Schema(
 
     aadhaarFile: {
       type: String, // S3 URL
+      default: null,
+    },
+
+    isAadhaarVerified: {
+      type: Boolean,
+      default: false
+    },
+
+    aadhaarVerifiedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+
+    aadhaarVerifiedAt: {
+      type: Date,
       default: null,
     },
 
@@ -129,6 +172,98 @@ const userSchema = new mongoose.Schema(
         default: null,
       },
     },
+
+    isBankVerified: {
+      type: Boolean,
+      default: false
+    },
+
+    bankVerifiedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+
+    bankVerifiedAt: {
+      type: Date,
+      default: null,
+    },
+
+    pendingVerification: {
+
+      pan: {
+        number: String,
+        file: String,
+
+        status: {
+          type: String,
+          enum: ["pending", "approved", "rejected"],
+          default: null,
+        },
+
+        submittedAt: Date,
+
+        reviewedAt: Date,
+
+        reviewedBy: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+          default: null,
+        },
+
+        rejectionReason: String,
+      },
+
+      aadhaar: {
+        number: String,
+        file: String,
+
+        status: {
+          type: String,
+          enum: ["pending", "approved", "rejected"],
+          default: null,
+        },
+
+        submittedAt: Date,
+
+        reviewedAt: Date,
+
+        reviewedBy: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+          default: null,
+        },
+
+        rejectionReason: String,
+      },
+
+      bank: {
+        accountNumber: String,
+        ifsc: String,
+        bankName: String,
+        cancelledChequeFile: String,
+        passbookFile: String,
+
+        status: {
+          type: String,
+          enum: ["pending", "approved", "rejected"],
+          default: null,
+        },
+
+        submittedAt: Date,
+
+        reviewedAt: Date,
+
+        reviewedBy: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+          default: null,
+        },
+
+        rejectionReason: String,
+      }
+    }
+
   },
   { timestamps: true }
 );
