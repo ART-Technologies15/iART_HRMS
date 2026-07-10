@@ -13,23 +13,41 @@ const Row = ({ label, value }) => (
   </div>
 );
 
-const DocumentRow = ({ label, file }) => (
-  <div className="flex items-center justify-between gap-4 border-b border-slate-100 py-2.5 last:border-b-0">
-    <span className="text-xs font-medium text-slate-400">{label}</span>
-
-    {file ? (
-      <a
-        href={file}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="inline-flex items-center gap-1 rounded-md bg-indigo-50 px-2.5 py-1 text-xs font-medium text-indigo-600 transition hover:bg-indigo-100"
-      >
-        View document <ExternalLink size={11} />
-      </a>
-    ) : (
-      <span className="rounded-md border border-dashed border-slate-200 px-2.5 py-1 text-xs text-slate-400">
-        Not uploaded
+const DocumentRow = ({ label, file, verified, verifiedBy, verifiedAt, }) => (
+  <div className="border-b border-slate-100 py-3 last:border-b-0">
+    <div className="flex items-center justify-between gap-4">
+      <span className="text-xs font-medium text-slate-400">
+        {label}
       </span>
+
+      {file ? (
+        <a
+          href={file}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 rounded-md bg-indigo-50 px-2.5 py-1 text-xs font-medium text-indigo-600 transition hover:bg-indigo-100"
+        >
+          View document <ExternalLink size={11} />
+        </a>
+      ) : (
+        <span className="rounded-md border border-dashed border-slate-200 px-2.5 py-1 text-xs text-slate-400">
+          Not uploaded
+        </span>
+      )}
+    </div>
+
+    {verified && (
+      <div className="mt-2 rounded-md bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
+        <div>
+          <span className="font-semibold">Verified By:</span>{" "}
+          {verifiedBy?.name || "-"}
+        </div>
+
+        <div>
+          <span className="font-semibold">Verified On:</span>{" "}
+          {formatDate(verifiedAt)}
+        </div>
+      </div>
     )}
   </div>
 );
@@ -57,7 +75,8 @@ const UserDetailsModal = ({ open, onClose, user }) => {
   const { user: loggedInUser } = useAuth(); // ✅ current logged-in user
 
   const isAdmin = loggedInUser?.role === "admin";
-  const canViewLeaveInfo = isAdmin || loggedInUser?._id === user?._id;
+  const isHr = loggedInUser?.role === "hr";
+  const canViewLeaveInfo = isAdmin || isHr || loggedInUser?._id === user?._id;
 
   const formattedDate = user?.leaveInfo?.updatedOn
     ? new Date(user.leaveInfo.updatedOn).toLocaleDateString("en-IN", {
@@ -150,12 +169,12 @@ const UserDetailsModal = ({ open, onClose, user }) => {
               <Phone size={15} className="shrink-0 text-slate-400" />
               <span>
                 {user.mobile}
-                {isAdmin && user.alternateMobile
+                {(isAdmin || isHr) && user.alternateMobile
                   ? ` / ${user.alternateMobile}`
                   : ""}
               </span>
             </div>
-            {isAdmin && (
+            {(isAdmin || isHr) && (
               <div className="flex items-center gap-2.5 text-sm text-slate-600">
                 <MapPin size={15} className="shrink-0 text-slate-400" />
                 <span className="truncate">{user.address || "-"}</span>
@@ -174,17 +193,17 @@ const UserDetailsModal = ({ open, onClose, user }) => {
               value={formatDate(user.joiningDate)}
             />
 
-            {isAdmin && <Row label="Address" value={user.address} />}
+            {(isAdmin || isHr) && <Row label="Address" value={user.address} />}
 
             <Row label="Primary Mobile" value={user.mobile} />
 
-            {isAdmin && (
+            {(isAdmin || isHr) && (
               <Row label="Alternate Mobile" value={user.alternateMobile} />
             )}
           </Card>
 
           {/* Identity & Bank — admin only */}
-          {isAdmin && (
+          {(isAdmin || isHr) && (
             <Card title="Identity & Banking">
               <Row label="PAN No." value={user.pan} />
               <Row label="Aadhaar" value={user.aadhaar} />
@@ -202,16 +221,28 @@ const UserDetailsModal = ({ open, onClose, user }) => {
           )}
 
           {/* Documents — admin only */}
-          {isAdmin && (
+          {(isAdmin || isHr) && (
             <Card title="Documents">
-              <DocumentRow label="PAN Document" file={user?.panFile} />
+              <DocumentRow
+                label="PAN Document"
+                file={user?.panFile}
+                verified={user?.isPanVerified}
+                verifiedBy={user?.panVerifiedBy}
+                verifiedAt={user?.panVerifiedAt}
+              />
               <DocumentRow
                 label="Aadhaar Document"
                 file={user?.aadhaarFile}
+                verified={user?.isAadhaarVerified}
+                verifiedBy={user?.aadhaarVerifiedBy}
+                verifiedAt={user?.aadhaarVerifiedAt}
               />
               <DocumentRow
                 label="Passbook"
                 file={user?.bankDetails?.passbookFile}
+                verified={user?.isBankVerified}
+                verifiedBy={user?.bankVerifiedBy}
+                verifiedAt={user?.bankVerifiedAt}
               />
             </Card>
           )}

@@ -245,19 +245,30 @@ const AdminUsersPage = () => {
     {
       label: "Active",
       accessor: "isActive",
-      render: (val, row) => (
-        <div onClick={(e) => e.stopPropagation()}>
-          <label className="relative inline-flex items-center cursor-pointer">
-            <input
-              type="checkbox"
-              className="sr-only peer"
-              checked={!!row.isActive}
-              onChange={() => handleToggleStatus(row._id, row.isActive)}
-            />
-            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-          </label>
-        </div>
-      ),
+      render: (val, row) => {
+        const isAdminUser = row.role === "admin";
+
+        return (
+          <div onClick={(e) => e.stopPropagation()}>
+            <label
+              className={`relative inline-flex items-center ${isAdminUser ? "cursor-not-allowed opacity-60" : "cursor-pointer"
+                }`}
+            >
+              <input
+                type="checkbox"
+                className="sr-only peer"
+                checked={!!row.isActive}
+                disabled={isAdminUser}
+                onChange={() =>
+                  !isAdminUser &&
+                  handleToggleStatus(row._id, row.isActive)
+                }
+              />
+              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+            </label>
+          </div>
+        );
+      },
     },
     {
       label: "Actions",
@@ -459,6 +470,8 @@ const AdminUsersPage = () => {
         initialData={typeof addUserOpen === "object" ? addUserOpen : null}
         loading={saving}
         isAdmin={user?.role === "admin"}
+        isHr={user?.role === "hr"}
+        isAdminHr={user?.role === "admin" || user?.role === "hr"}
       />
 
       <ConfirmDeleteModal

@@ -51,3 +51,18 @@ export const toggleUserStatus = async (userId, isActive) => {
   });
   return res.data;
 };
+
+export const getVerificationRequests = async (params = {}) => {
+  const res = await axiosInstance.get("/auth/getPendingVerificationRequests", { params });
+  return res.data;
+};
+
+export const reviewPendingVerification = async (id, data) => {
+  const res = await axiosInstance.patch(`/auth/actionPendingVerification/${id}`, data);
+  return res.data;
+};
+
+export const reviewAllPendingVerification = async (id) => {
+  const res = await axiosInstance.patch(`/auth/actionPendingVerification/${id}/review-all`);
+  return res.data;
+};

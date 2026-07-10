@@ -89,9 +89,17 @@ const UserFormModal = ({
   onSubmit,
   initialData,
   isAdmin = false,
+  isHr = false,
+  isAdminHr = false,
   loading = false,
 }) => {
   const isEdit = !!initialData;
+
+  const isPanLocked = isEdit && initialData?.isPanVerified;
+  const isAadhaarLocked = isEdit && initialData?.isAadhaarVerified;
+
+  const isPanVerifiedBy = isEdit && initialData?.panVerifiedBy?.name;
+  const isAadhaarVerifiedBy = isEdit && initialData?.aadhaarVerifiedBy?.name;
 
   const [form, setForm] = useState(defaultForm);
   const [changePwd, setChangePwd] = useState(false);
@@ -103,6 +111,7 @@ const UserFormModal = ({
   const [showNewPwd, setShowNewPwd] = useState(false);
 
   const fileInputRef = useRef(null);
+  const initialFormRef = useRef(null);
 
   // Local preview URL for a newly-selected (not yet uploaded) photo file.
   // Created/revoked here so we never leak blob URLs across renders.
@@ -128,7 +137,7 @@ const UserFormModal = ({
     if (!open) return;
 
     if (isEdit) {
-      const { password, bankDetails, leaveInfo, department, ...rest } =
+      const { password, bankDetails, leaveInfo, department, panFile, aadhaarFile, ...rest } =
         initialData || {};
 
       // If the stored department isn't one of our preset options, treat it
@@ -142,7 +151,7 @@ const UserFormModal = ({
         : "";
       const customDepartmentValue = department && !isPreset ? department : "";
 
-      setForm({
+      const nextForm = {
         ...defaultForm,
         ...rest,
         department: departmentValue,
@@ -153,17 +162,33 @@ const UserFormModal = ({
         joiningDate: rest?.joiningDate
           ? new Date(rest.joiningDate).toISOString().split("T")[0]
           : "",
+        // panFile/aadhaarFile deliberately excluded above and left at
+        // defaultForm's null — they should only ever hold a NEW File the
+        // user picks, never the existing URL (the URL is shown separately
+        // via initialData.panFile / initialData.aadhaarFile links below).
         bankDetails: {
-          ...defaultForm.bankDetails,
-          ...(bankDetails || {}),
+          accountNumber: bankDetails?.accountNumber || "",
+          ifsc: bankDetails?.ifsc || "",
+          bankName: bankDetails?.bankName || "",
+          passbookFile: null, // same reasoning — never seed with the existing URL
         },
         password: "",
         leaveInfo: {
           balance: leaveInfo?.balance ?? "",
         },
-      });
+        // kept only for diffing at submit time — not rendered anywhere
+        _rawDepartment: department || "",
+      };
+
+      setForm(nextForm);
+      initialFormRef.current = {
+        ...nextForm,
+        bankDetails: { ...nextForm.bankDetails },
+        leaveInfo: { ...nextForm.leaveInfo },
+      };
     } else {
       setForm(defaultForm);
+      initialFormRef.current = null; // add mode always sends everything
     }
 
     setChangePwd(false);
@@ -407,62 +432,111 @@ const UserFormModal = ({
         ? form.customDepartment.trim()
         : form.department;
 
-    // ── Common fields ──────────────────────────────────────
-    payload.append("name", form.name);
-    payload.append("email", form.email);
-    payload.append("mobile", form.mobile);
-    payload.append("alternateMobile", form.alternateMobile);
-    payload.append("department", resolvedDepartment);
-    payload.append("designation", form.designation || "");
-    payload.append("address", form.address || "");
-    payload.append("dateOfBirth", form.dateOfBirth || "");
-    payload.append("joiningDate", form.joiningDate || "");
-    payload.append("role", form.role);
+    if (!isEdit) {
+      // ── Add mode: no "initial" to diff against — send everything ──
+      payload.append("name", form.name);
+      payload.append("email", form.email);
+      payload.append("mobile", form.mobile);
+      payload.append("alternateMobile", form.alternateMobile);
+      payload.append("department", resolvedDepartment);
+      payload.append("designation", form.designation || "");
+      payload.append("address", form.address || "");
+      payload.append("dateOfBirth", form.dateOfBirth || "");
+      payload.append("joiningDate", form.joiningDate || "");
+      payload.append("role", form.role);
+      payload.append("password", form.password);
 
-    if (form.profilePhoto) {
+      if (form.profilePhoto instanceof File) {
+        payload.append("profilePhoto", form.profilePhoto);
+      }
+
+      if (isAdmin && form.leaveInfo?.balance !== "") {
+        payload.append("leaveInfo", JSON.stringify({ balance: Number(form.leaveInfo.balance) }));
+      }
+
+      if (isAdmin) {
+        payload.append("pan", form.pan || "");
+        payload.append("aadhaar", form.aadhaar || "");
+        payload.append(
+          "bankDetails",
+          JSON.stringify({
+            accountNumber: form.bankDetails.accountNumber || "",
+            ifsc: form.bankDetails.ifsc || "",
+            bankName: form.bankDetails.bankName || "",
+          })
+        );
+        if (form.panFile instanceof File) payload.append("panFile", form.panFile);
+        if (form.aadhaarFile instanceof File) payload.append("aadhaarFile", form.aadhaarFile);
+        if (form.bankDetails.passbookFile instanceof File)
+          payload.append("passbookFile", form.bankDetails.passbookFile);
+      }
+
+      onSubmit?.(payload, "add");
+      return;
+    }
+
+    // ── Edit mode: diff against the snapshot taken when the modal opened ──
+    const initial = initialFormRef.current || form;
+
+    const scalarFields = ["name", "email", "mobile", "alternateMobile", "designation", "address", "dateOfBirth", "joiningDate"];
+    scalarFields.forEach((key) => {
+      if (form[key] !== initial[key]) {
+        payload.append(key, form[key] || "");
+      }
+    });
+
+    if (resolvedDepartment !== initial._rawDepartment) {
+      payload.append("department", resolvedDepartment);
+    }
+
+    if (isAdmin && form.role !== initial.role) {
+      payload.append("role", form.role);
+    }
+
+    if (form.profilePhoto instanceof File) {
       payload.append("profilePhoto", form.profilePhoto);
     }
 
-    // ── Add mode — password required ──────────────────────
-    if (!isEdit) {
-      payload.append("password", form.password);
-    }
-
-    // ── Edit mode — optional password change ──────────────
-    if (isEdit && changePwd) {
+    if (changePwd) {
       if (!isAdmin) payload.append("oldPassword", oldPassword);
       payload.append("newPassword", newPassword);
     }
 
-    // ── Leave balance ─────────────────────────────────────
-    if (isAdmin && form.leaveInfo?.balance !== "") {
-      payload.append(
-        "leaveInfo",
-        JSON.stringify({ balance: Number(form.leaveInfo.balance) })
-      );
+    if (isAdmin && form.leaveInfo?.balance !== "" && form.leaveInfo.balance !== initial.leaveInfo.balance) {
+      payload.append("leaveInfo", JSON.stringify({ balance: Number(form.leaveInfo.balance) }));
     }
 
-    // ── Admin-only: documents + bank ──────────────────────
     if (isAdmin) {
-      payload.append("pan", form.pan || "");
-      payload.append("aadhaar", form.aadhaar || "");
+      if (form.pan !== initial.pan) {
+        payload.append("pan", form.pan || "");
+      }
+      if (form.aadhaar !== initial.aadhaar) {
+        payload.append("aadhaar", form.aadhaar || "");
+      }
 
-      payload.append(
-        "bankDetails",
-        JSON.stringify({
-          accountNumber: form.bankDetails.accountNumber || "",
-          ifsc: form.bankDetails.ifsc || "",
-          bankName: form.bankDetails.bankName || "",
-        })
-      );
+      const bankChanges = {};
+      if (form.bankDetails.accountNumber !== initial.bankDetails.accountNumber)
+        bankChanges.accountNumber = form.bankDetails.accountNumber || "";
+      if (form.bankDetails.ifsc !== initial.bankDetails.ifsc)
+        bankChanges.ifsc = form.bankDetails.ifsc || "";
+      if (form.bankDetails.bankName !== initial.bankDetails.bankName)
+        bankChanges.bankName = form.bankDetails.bankName || "";
+      if (Object.keys(bankChanges).length > 0) {
+        payload.append("bankDetails", JSON.stringify(bankChanges));
+      }
 
-      if (form.panFile) payload.append("panFile", form.panFile);
-      if (form.aadhaarFile) payload.append("aadhaarFile", form.aadhaarFile);
-      if (form.bankDetails.passbookFile)
+      if (form.panFile instanceof File) payload.append("panFile", form.panFile);
+      if (form.aadhaarFile instanceof File) payload.append("aadhaarFile", form.aadhaarFile);
+      if (form.bankDetails.passbookFile instanceof File)
         payload.append("passbookFile", form.bankDetails.passbookFile);
     }
 
-    onSubmit?.(payload, isEdit ? "edit" : "add");
+    if ([...payload.keys()].length === 0) {
+      toast.info("No changes to save.");
+      return;
+    }
+
+    onSubmit?.(payload, "edit");
   };
 
   if (!open) return null;
@@ -784,7 +858,7 @@ const UserFormModal = ({
           </section>
 
           {/* Identity & Bank — admin only */}
-          {isAdmin && (
+          {isAdminHr && (
             <section className="border-t border-slate-100 pt-6">
               <SectionHeader
                 icon={Landmark}
@@ -803,10 +877,17 @@ const UserFormModal = ({
                         pan: e.target.value.toUpperCase().slice(0, 10),
                       }))
                     }
-                    className={inputCls}
+                    className={`${inputCls} ${isPanLocked ? "bg-slate-100 cursor-not-allowed" : ""
+                      }`}
                     placeholder="ABCDE1234F"
-                    disabled={loading}
+                    disabled={loading || isPanLocked}
                   />
+
+                  {isPanLocked && (
+                    <p className="mt-1 text-xs text-emerald-600 font-medium">
+                      ✓ PAN has been verified by <span className="font-bold"> {isPanVerifiedBy} </span> and cannot be edited.
+                    </p>
+                  )}
                 </div>
 
                 <div>
@@ -821,7 +902,7 @@ const UserFormModal = ({
                       }))
                     }
                     className={fileCls}
-                    disabled={loading}
+                    disabled={loading || isPanLocked}
                   />
                   {form.panFile?.name ? (
                     <p className="mt-1 truncate text-xs text-slate-400">
@@ -853,10 +934,17 @@ const UserFormModal = ({
                         aadhaar: e.target.value.replace(/\D/g, "").slice(0, 12),
                       }))
                     }
-                    className={inputCls}
+                    className={`${inputCls} ${isAadhaarLocked ? "bg-slate-100 cursor-not-allowed" : ""
+                      }`}
                     placeholder="12 digit Aadhaar"
-                    disabled={loading}
+                    disabled={loading || isAadhaarLocked}
                   />
+
+                  {isAadhaarLocked && (
+                    <p className="mt-1 text-xs text-emerald-600 font-medium">
+                      ✓ Aadhaar has been verified by <span className="font-bold"> {isAadhaarVerifiedBy} </span>and cannot be edited.
+                    </p>
+                  )}
                 </div>
 
                 <div>
@@ -871,7 +959,7 @@ const UserFormModal = ({
                       }))
                     }
                     className={fileCls}
-                    disabled={loading}
+                    disabled={loading || isAadhaarLocked}
                   />
                   {form.aadhaarFile?.name ? (
                     <p className="mt-1 truncate text-xs text-slate-400">

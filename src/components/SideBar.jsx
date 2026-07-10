@@ -14,7 +14,8 @@ import {
   Megaphone,
   LucideCalendarCheck2,
   LaptopMinimalCheck,
-  ChartCandlestick
+  ChartCandlestick,
+  FileText
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
@@ -116,6 +117,16 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, user }) => {
             className={linkClasses}
           >
             <LucideCalendarCheck2 className="w-5 h-5" /> Regularization
+          </NavLink>
+        )}
+
+        {(isAdmin || isHr) && (
+          <NavLink
+            to="/document-kyc"
+            onClick={() => setSidebarOpen(false)}
+            className={linkClasses}
+          >
+            <FileText className="w-5 h-5" /> Documents KYC
           </NavLink>
         )}
 

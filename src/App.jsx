@@ -21,6 +21,7 @@ import Regularization from "./pages/Regularization";
 import AdminAssestsPage from "./pages/AdminAssestsPage";
 import MyAssetsPage from "./pages/MyAssetsPage";
 import PublicAssetPage from "./pages/PublicAssetPage";
+import AdminPendingVerificationRequest from "./pages/AdminPendingVerificationRequest";
 
 const App = () => {
   return (
@@ -85,6 +86,14 @@ const App = () => {
             element={
               <AdminHrRoute>
                 <AdminUsersPage />
+              </AdminHrRoute>
+            }
+          />
+          <Route
+            path="/document-kyc"
+            element={
+              <AdminHrRoute>
+                <AdminPendingVerificationRequest />
               </AdminHrRoute>
             }
           />
