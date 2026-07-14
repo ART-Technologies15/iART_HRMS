@@ -1387,30 +1387,169 @@ export const getPendingVerificationRequests = async (req, res) => {
 
     const skip = (Number(page) - 1) * Number(limit);
 
-    const [users, total] = await Promise.all([
+    const [
+      users,
+      total,
+      totalEmployees,
+      submittedCount,
+      notSubmittedUsers,
+      pendingUsers,
+      approvedUsers
+    ] = await Promise.all([
+      // Existing queries...
       User.find(query)
         .populate("createdBy", "name role")
-        .select(
-          `
-          employeeId
-          name
-          email
-          mobile
-          department
-          designation
-          role
-          isActive
-          createdBy
-          pendingVerification
-          `
-        )
+        .select(`
+      employeeId
+      name
+      email
+      mobile
+      department
+      designation
+      role
+      isActive
+      createdBy
+      pendingVerification
+    `)
         .sort({ updatedAt: -1 })
         .skip(skip)
         .limit(Number(limit))
         .lean(),
 
       User.countDocuments(query),
+
+      User.countDocuments({
+        _id: { $ne: req.user._id },
+        role: { $ne: "admin" },
+        isActive: true,
+      }),
+
+      User.countDocuments({
+        _id: { $ne: req.user._id },
+        role: { $ne: "admin" },
+        isActive: true,
+        $or: [
+          { "pendingVerification.pan.number": { $exists: true, $ne: null } },
+          { "pendingVerification.aadhaar.number": { $exists: true, $ne: null } },
+          { "pendingVerification.bank.accountNumber": { $exists: true, $ne: null } },
+        ],
+      }),
+
+      // Users who haven't submitted anything
+      User.find({
+        _id: { $ne: req.user._id },
+        role: { $ne: "admin" },
+        isActive: true,
+        $and: [
+          {
+            $or: [
+              { "pendingVerification.pan.number": null },
+              { "pendingVerification.pan.number": { $exists: false } },
+            ],
+          },
+          {
+            $or: [
+              { "pendingVerification.aadhaar.number": null },
+              { "pendingVerification.aadhaar.number": { $exists: false } },
+            ],
+          },
+          {
+            $or: [
+              { "pendingVerification.bank.accountNumber": null },
+              { "pendingVerification.bank.accountNumber": { $exists: false } },
+            ],
+          },
+        ],
+      })
+        .select("name profilePhoto role designation department mobile alternateMobile email")
+        .lean(),
+
+      // Users having at least one pending verification
+      User.find({
+        _id: { $ne: req.user._id },
+        role: { $ne: "admin" },
+        isActive: true,
+        $or: [
+          { "pendingVerification.pan.status": "pending" },
+          { "pendingVerification.aadhaar.status": "pending" },
+          { "pendingVerification.bank.status": "pending" },
+        ],
+      })
+        .select(
+          "name profilePhoto role designation department pendingVerification"
+        )
+        .lean(),
+
+      // Users whose KYC has been approved
+      User.find({
+        _id: { $ne: req.user._id },
+        role: { $ne: "admin" },
+        isActive: true,
+        $or: [
+          { "pendingVerification.pan.status": "approved" },
+          { "pendingVerification.aadhaar.status": "approved" },
+          { "pendingVerification.bank.status": "approved" },
+        ],
+      })
+        .select(
+          "name profilePhoto role designation department pendingVerification"
+        )
+        .lean(),
     ]);
+
+    const formattedPendingUsers = pendingUsers.map((user) => {
+      const pendingTypes = [];
+
+      if (user.pendingVerification?.pan?.status === "pending") {
+        pendingTypes.push("PAN");
+      }
+
+      if (user.pendingVerification?.aadhaar?.status === "pending") {
+        pendingTypes.push("Aadhaar");
+      }
+
+      if (user.pendingVerification?.bank?.status === "pending") {
+        pendingTypes.push("Bank");
+      }
+
+      return {
+        _id: user._id,
+        name: user.name,
+        profilePhoto: user.profilePhoto,
+        role: user.role,
+        designation: user.designation,
+        department: user.department,
+        pendingTypes,
+        pendingCount: pendingTypes.length,
+      };
+    });
+
+    const formattedApprovedUsers = approvedUsers.map((user) => {
+      const approvedTypes = [];
+
+      if (user.pendingVerification?.pan?.status === "approved") {
+        approvedTypes.push("PAN");
+      }
+
+      if (user.pendingVerification?.aadhaar?.status === "approved") {
+        approvedTypes.push("Aadhaar");
+      }
+
+      if (user.pendingVerification?.bank?.status === "approved") {
+        approvedTypes.push("Bank");
+      }
+
+      return {
+        _id: user._id,
+        name: user.name,
+        profilePhoto: user.profilePhoto,
+        role: user.role,
+        designation: user.designation,
+        department: user.department,
+        approvedTypes,
+        approvedCount: approvedTypes.length,
+      };
+    });
 
     const data = users.map((user) => {
       const pendingTypes = [];
@@ -1446,6 +1585,19 @@ export const getPendingVerificationRequests = async (req, res) => {
     return res.status(200).json({
       success: true,
       message: "Pending verification requests fetched successfully",
+      summary: {
+        totalEmployees,
+        submittedCount,
+
+        pendingCount: formattedPendingUsers.length,
+        approvedCount: formattedApprovedUsers.length,
+        notSubmittedCount: totalEmployees - submittedCount,
+
+        // pendingUsers: formattedPendingUsers,
+        approvedUsers: formattedApprovedUsers,
+        notSubmittedUsers,
+      },
+
       users: data,
       pagination: {
         total,
