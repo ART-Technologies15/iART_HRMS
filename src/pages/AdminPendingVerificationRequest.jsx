@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Search, RefreshCcw } from "lucide-react";
 import CustomTable from "../components/CustomTable";
 import VerificationReviewModal from "../components/VerificationReviewModal";
+import VerificationSummaryCards from "../components/VerificationSummaryCards";
 import { getVerificationRequests, reviewPendingVerification, reviewAllPendingVerification } from "../api/authApi";
 import { toast } from "react-toastify";
 
@@ -15,6 +16,7 @@ const TYPE_LABEL = { pan: "PAN", aadhaar: "Aadhaar", bank: "Bank" };
 const AdminPendingVerificationRequest = () => {
     const [requests, setRequests] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [summary, setSummary] = useState(null);
 
     const [searchInput, setSearchInput] = useState("");
     const [search, setSearch] = useState("");
@@ -40,6 +42,7 @@ const AdminPendingVerificationRequest = () => {
             const res = await getVerificationRequests({ page, limit: rowsPerPage, search });
             if (res?.success) {
                 setRequests(res.users);
+                setSummary(res.summary);
                 setTotalPages(res.pagination?.totalPages || 1);
                 setTotalRecords(res.pagination?.total || 0);
             } else {
@@ -197,6 +200,10 @@ const AdminPendingVerificationRequest = () => {
                     </p>
                 </div>
             </div>
+            
+            <VerificationSummaryCards
+                summary={summary}
+            />
 
             <div className="relative max-w-sm">
                 <input
