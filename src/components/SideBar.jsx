@@ -15,7 +15,8 @@ import {
   LucideCalendarCheck2,
   LaptopMinimalCheck,
   ChartCandlestick,
-  FileText
+  FileText,
+  FilePenLine
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
@@ -174,6 +175,16 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, user }) => {
         >
           <CalendarCheck className="w-5 h-5" /> Leave Management
         </NavLink>
+
+        {isAdmin && (
+          <NavLink
+            to="/Invoice"
+            onClick={() => setSidebarOpen(false)}
+            className={linkClasses}
+          >
+            <FilePenLine className="w-5 h-5" /> Client Invoice
+          </NavLink>
+        )}
 
         <NavLink
           to="/account"

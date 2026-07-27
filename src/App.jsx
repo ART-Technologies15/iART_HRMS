@@ -22,6 +22,7 @@ import AdminAssestsPage from "./pages/AdminAssestsPage";
 import MyAssetsPage from "./pages/MyAssetsPage";
 import PublicAssetPage from "./pages/PublicAssetPage";
 import AdminPendingVerificationRequest from "./pages/AdminPendingVerificationRequest";
+import { ClientInvoice } from "./pages/ClientInvoice";
 
 const App = () => {
   return (
@@ -126,6 +127,14 @@ const App = () => {
             element={
               <AdminRoute>
                 <Notification />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/Invoice"
+            element={
+              <AdminRoute>
+                <ClientInvoice />
               </AdminRoute>
             }
           />
