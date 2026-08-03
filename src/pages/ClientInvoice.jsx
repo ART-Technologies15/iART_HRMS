@@ -29,7 +29,7 @@ import iArtLogo from "../assets/logoiart.svg";
 
 const A4_WIDTH = 794 // px @ 96dpi
 const A4_HEIGHT = 1123
-const ITEMS_PER_PAGE = 8
+const ITEMS_PER_PAGE = 10
 
 // Palette pulled from Sample_invoice.xlsx so the PDF matches the reference invoice.
 const ACCENT = '#0C77F4' // header / brand blue used in the xlsx template
@@ -126,8 +126,9 @@ const useContainerWidth = () => {
 export const ClientInvoice = () => {
     const [company, setCompany] = useState({
         name: 'iART Technologies Pvt. Ltd.',
-        address:
-            'Second Floor, Model Town Market, SCO - 13, Sector 126, Greater Mohali, Model Town, Sahibzada Ajit Singh Nagar, Punjab 140301',
+        // address:
+        //     'Second Floor, Model Town Market, SCO - 13, Sector 126, Greater Mohali, Model Town, Sahibzada Ajit Singh Nagar, Punjab 140301',
+        address: 'Floor No. 1, Shop No. 21, Gurunanak Market,Dhand Road, Kaithal – 136027, Haryana, India',
         state: 'Haryana',
         code: '06',
         phone: '+91-9914851312',
@@ -152,7 +153,7 @@ export const ClientInvoice = () => {
         dueDate: "",
     });
 
-    const [items, setItems] = useState([{ id: uid(), description: '', qty: 1, rate: 0 }])
+    const [items, setItems] = useState([{ id: uid(), description: '', hsn: 998314, qty: 1, rate: 0 }])
 
     // Flexible tax rows — add/remove freely, each with its own default % that can be edited.
     const [taxes, setTaxes] = useState([
@@ -222,7 +223,7 @@ export const ClientInvoice = () => {
     // ---- item handlers ----
     const updateItem = (id, field, value) =>
         setItems((prev) => prev.map((it) => (it.id === id ? { ...it, [field]: value } : it)))
-    const addItem = () => setItems((prev) => [...prev, { id: uid(), description: '', qty: 1, rate: 0 }])
+    const addItem = () => setItems((prev) => [...prev, { id: uid(), description: '', hsn: 998314, qty: 1, rate: 0 }])
     const removeItem = (id) => setItems((prev) => (prev.length > 1 ? prev.filter((it) => it.id !== id) : prev))
 
     // ---- tax handlers ----
@@ -307,7 +308,7 @@ export const ClientInvoice = () => {
             <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,700px)_1fr] gap-6 items-start">
                 {/* ============================ FORM (scrolls) ============================ */}
                 <div className="space-y-5 xl:max-h-[calc(100vh-140px)] xl:overflow-y-auto xl:pr-2 xl:-mr-2">
-                    <Section title="From">
+                    {/* <Section title="From">
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <Field
                                 label="Company name"
@@ -354,7 +355,7 @@ export const ClientInvoice = () => {
                                 onChange={(e) => setCompany({ ...company, gstin: e.target.value })}
                             />
                         </div>
-                    </Section>
+                    </Section> */}
 
                     <Section title="Bill To">
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -527,34 +528,66 @@ export const ClientInvoice = () => {
                             </button>
                         }
                     >
-                        <div className="space-y-2">
+                        <div className="space-y-4">
                             {items.map((it) => (
-                                <div key={it.id} className="flex gap-2 items-start">
+                                <div
+                                    key={it.id}
+                                    className="space-y-3"
+                                >
+                                    {/* Description - Full Width */}
                                     <Field
-                                        className="flex-1"
+                                        className="w-full"
                                         placeholder="Description"
                                         value={it.description}
-                                        onChange={(e) => updateItem(it.id, 'description', e.target.value)}
+                                        onChange={(e) =>
+                                            updateItem(it.id, "description", e.target.value)
+                                        }
                                     />
-                                    <Field
-                                        className="w-16"
-                                        type="number"
-                                        min="0"
-                                        placeholder="Qty"
-                                        value={it.qty}
-                                        onChange={(e) => updateItem(it.id, 'qty', e.target.value)}
-                                    />
-                                    <Field
-                                        className="w-24"
-                                        type="number"
-                                        min="0"
-                                        placeholder="Rate"
-                                        value={it.rate}
-                                        onChange={(e) => updateItem(it.id, 'rate', e.target.value)}
-                                    />
-                                    <IconBtn danger title="Remove item" onClick={() => removeItem(it.id)}>
-                                        ✕
-                                    </IconBtn>
+
+                                    <div className="w-40">
+                                        <Field
+                                            placeholder="HSN / SAC"
+                                            value={it.hsn}
+                                            onChange={(e) =>
+                                                updateItem(it.id, "hsn", e.target.value)
+                                            }
+                                        />
+                                    </div>
+
+                                    {/* Qty & Rate - Second Row */}
+                                    <div className="flex gap-2 items-end">
+                                        <div className="w-24">
+                                            <Field
+                                                type="number"
+                                                min="0"
+                                                placeholder="Qty"
+                                                value={it.qty}
+                                                onChange={(e) =>
+                                                    updateItem(it.id, "qty", e.target.value)
+                                                }
+                                            />
+                                        </div>
+
+                                        <div className="w-32">
+                                            <Field
+                                                type="number"
+                                                min="0"
+                                                placeholder="Rate"
+                                                value={it.rate}
+                                                onChange={(e) =>
+                                                    updateItem(it.id, "rate", e.target.value)
+                                                }
+                                            />
+                                        </div>
+
+                                        <IconBtn
+                                            danger
+                                            title="Remove item"
+                                            onClick={() => removeItem(it.id)}
+                                        >
+                                            ✕
+                                        </IconBtn>
+                                    </div>
                                 </div>
                             ))}
                         </div>
@@ -618,7 +651,7 @@ export const ClientInvoice = () => {
                         </div>
                     </Section>
 
-                    <Section title="Notes & payment">
+                    {/* <Section title="Notes & payment">
                         <TextArea
                             label="Notes / terms"
                             rows={3}
@@ -673,7 +706,7 @@ export const ClientInvoice = () => {
                                 }
                             />
                         </div>
-                    </Section>
+                    </Section> */}
                 </div>
 
                 {/* ============================ PREVIEW (pinned, scales to fit — never scrolls) ============================ */}
@@ -902,9 +935,10 @@ const InvoicePage = ({
                     <tr style={{ backgroundColor: ACCENT }}>
                         <th style={thStyle('40px', 'left')}></th>
                         <th style={thStyle('auto', 'left')}>Description</th>
-                        <th style={thStyle('56px', 'right')}>HSN/SAC</th>
-                        <th style={thStyle('96px', 'right')}>Unit Price</th>
-                        <th style={thStyle('112px', 'right')}>Total</th>
+                        <th style={thStyle('auto', 'center')}>HSN/SAC</th>
+                        <th style={thStyle('56px', 'center')}>Qty</th>
+                        <th style={thStyle('96px', 'center')}>Unit Price</th>
+                        <th style={thStyle('112px', 'center')}>Total</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -912,9 +946,10 @@ const InvoicePage = ({
                         <tr key={it.id} style={{ borderBottom: `1px solid ${BORDER}` }}>
                             <td style={tdStyle('left', INK_LIGHT)}>{startNumber + i + 1}</td>
                             <td style={tdStyle('left', INK)}>{it.description || '—'}</td>
-                            <td style={tdStyle('right', INK)}>{Number(it.qty) || 0}</td>
-                            <td style={tdStyle('right', INK)}>{money(it.rate)}</td>
-                            <td style={{ ...tdStyle('right', INK), fontWeight: 600 }}>
+                            <td style={tdStyle('center', INK)}>{Number(it.hsn) || 998314}</td>
+                            <td style={tdStyle('center', INK)}>{Number(it.qty) || 0}</td>
+                            <td style={tdStyle('center', INK)}>{money(it.rate)}</td>
+                            <td style={{ ...tdStyle('center', INK), fontWeight: 600 }}>
                                 {money((Number(it.qty) || 0) * (Number(it.rate) || 0))}
                             </td>
                         </tr>
@@ -970,9 +1005,48 @@ const InvoicePage = ({
                 </div>
             )}
 
+
             {/* Terms & Instructions — last page only, mirrors the xlsx footer block */}
             {isLastPage && (notes || bank.bankName || bank.accountNumber) && (
                 <div style={{ marginTop: 28, paddingTop: 14, borderTop: `1px solid ${BORDER}` }}>
+                    {/* Signature */}
+                    <div style={{ display: 'flex', gap: 16, marginTop: 20, marginBottom: 20 }}>
+                        <div style={{ flex: 1, border: `1px solid ${BORDER}`, borderRadius: 4, padding: '10px 14px' }}>
+                            <p
+                                style={{
+                                    margin: '0 0 8px',
+                                    fontSize: 9.5,
+                                    fontWeight: 700,
+                                    color: ACCENT,
+                                    // textTransform: 'uppercase',
+                                    letterSpacing: 0.5,
+                                }}
+                            >
+                                Customer's Seal and Signature
+                            </p>
+                        </div>
+                        <div style={{ flex: 1, border: `1px solid ${BORDER}`, borderRadius: 4, padding: '10px 14px' }}>
+                            <p
+                                style={{
+                                    margin: '0 0 8px',
+                                    fontSize: 9.5,
+                                    fontWeight: 700,
+                                    color: ACCENT,
+                                    // textTransform: 'uppercase',
+                                    letterSpacing: 0.5,
+                                    display: 'flex',
+                                    justifyContent: 'end',
+                                    alignItems: 'flex-end',
+                                }}
+                            >
+                                for iART TECHNOLOGIES Pvt Ltd
+                            </p>
+                            <div style={{ display: 'flex', justifyContent: 'end', fontSize: 9.5, marginTop: 25 }}>
+                                <span style={{ color: INK, fontWeight: 600 }}>Authorised Signatory</span>
+                            </div>
+                        </div>
+                    </div>
+
                     <p
                         style={{
                             margin: '0 0 8px',
@@ -1030,12 +1104,12 @@ const InvoicePage = ({
                     marginTop: 'auto',
                     paddingTop: 16,
                     display: 'flex',
-                    justifyContent: 'end',
+                    justifyContent: 'center',
                     alignItems: 'flex-end',
                 }}
             >
-                <span style={{ fontSize: 8, color: INK_LIGHT }}>
-                    Page {pageIndex + 1} of {pageCount}
+                <span style={{ fontSize: 10, color: INK_LIGHT }}>
+                    This is Computer Generated Invoice
                 </span>
             </div>
         </div>
