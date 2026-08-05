@@ -75,6 +75,64 @@ function isInProvisionPeriod(joiningDate, month, year) {
   );
 }
 
+async function autoCloseOpenAttendance(userId, userName, rangeStart, rangeEnd) {
+  const attendanceDoc = await Attendance.findOne({ userId });
+
+  if (!attendanceDoc) return;
+
+  let updated = false;
+
+  for (const record of attendanceDoc.records) {
+    const recordDate = moment(record.date).utcOffset("+05:30");
+
+    // Only previous month's records
+    if (
+      recordDate.isBefore(rangeStart, "day") ||
+      recordDate.isAfter(rangeEnd, "day")
+    ) {
+      continue;
+    }
+
+    // Skip if employee never punched in
+    if (!record.punchIn) continue;
+
+    // Already punched out
+    if (record.punchOut) continue;
+
+    // Auto logout at 7 PM
+    const autoPunchOut = recordDate
+      .clone()
+      .hour(19)
+      .minute(0)
+      .second(0)
+      .millisecond(0);
+
+    const totalSeconds = Math.max(
+      Math.floor(
+        moment.duration(
+          autoPunchOut.diff(moment(record.punchIn))
+        ).asSeconds()
+      ),
+      0
+    );
+
+    record.punchOut = autoPunchOut.toDate();
+    record.totalHours = totalSeconds;
+
+    updated = true;
+
+    console.log(
+      `Auto punch-out: ${userName} | ${recordDate.format(
+        "DD-MM-YYYY"
+      )} | ${autoPunchOut.format("HH:mm")}`
+    );
+  }
+
+  if (updated) {
+    await attendanceDoc.save();
+  }
+}
+
 /* ------------------ MAIN LOGIC ------------------ */
 async function processMonthlyLeaveUpdate(triggerSource = "scheduled") {
   const now = moment().utcOffset("+05:30");
@@ -128,6 +186,14 @@ async function processMonthlyLeaveUpdate(triggerSource = "scheduled") {
   /* ================= PER USER ================= */
   for (const user of users) {
     try {
+
+      /* ---------- AUTO LOGOUT EMPLOYEES WHO FORGOT TO PUNCH OUT ---------- */
+      await autoCloseOpenAttendance(
+        user._id,
+        user.name,
+        rangeStart,
+        rangeEnd
+      );
 
       /* ---------- DETERMINE EFFECTIVE DAYS (JOINING DATE) ---------- */
       let userDays = daysOfMonth; // default: full month
