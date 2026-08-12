@@ -37,6 +37,8 @@ export const getProfileAccount = async (params = {}) => {
 
 export const updateUser = async (id, data) => {
   const res = await axiosInstance.put(`/auth/${id}`, data);
+  console.log(res);
+  
   return res.data;
 };
 

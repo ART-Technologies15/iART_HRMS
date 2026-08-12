@@ -816,6 +816,8 @@ const UserFormModal = ({
                   disabled={loading}
                 >
                   <option value="employee">Employee</option>
+                  <option value="intern">Intern</option>
+                  <option value="trainee">Trainee</option>
                   <option value="hr">HR</option>
                 </select>
               </div>

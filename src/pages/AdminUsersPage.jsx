@@ -19,6 +19,7 @@ import {
 import { toast } from "react-toastify";
 import { useAuth } from "../context/AuthContext";
 import EmployeeAssetsModal from "../components/EmployeeAssetsModal";
+import { getErrorMessage } from "../helper/commonFuction";
 
 const AdminUsersPage = () => {
   const navigate = useNavigate();
@@ -157,7 +158,8 @@ const AdminUsersPage = () => {
       setAddUserOpen(false);
       fetchUsers();
     } catch (err) {
-      toast.error(err.message || "Something went wrong");
+      console.log(err);
+      toast.error(getErrorMessage(err));
     } finally {
       setSaving(false);
     }

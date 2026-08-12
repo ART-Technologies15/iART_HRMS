@@ -271,6 +271,10 @@ const Avatar = ({ name, profilePhoto }) => {
 const Account = () => {
   const { user, setUser, logout } = useAuth();
   const isAdmin = user?.role === "admin";
+  const isIntern = user?.role === "intern";
+  const isTrainee = user?.role === "trainee";
+
+  const isInternOrTrainee = isIntern || isTrainee;
 
   const initialFormRef = useRef(null);
 
@@ -419,13 +423,6 @@ const Account = () => {
       !user?.bankDetails?.ifsc ||
       !user?.bankDetails?.passbookFile;
 
-    if (missingPAN) {
-      if (!formData.pan)
-        return "PAN number is mandatory.";
-
-      if (!selectedFiles.panFile && !user?.panFile)
-        return "Please upload PAN document.";
-    }
 
     if (missingAadhaar) {
       if (!formData.aadhaar)
@@ -435,21 +432,33 @@ const Account = () => {
         return "Please upload Aadhaar document.";
     }
 
-    if (missingBank) {
-      if (!formData.bankName)
-        return "Bank name is mandatory.";
+    if (!isInternOrTrainee) {
 
-      if (!formData.accountNumber)
-        return "Account number is mandatory.";
+      if (missingPAN) {
+        if (!formData.pan)
+          return "PAN number is mandatory.";
 
-      if (!formData.ifsc)
-        return "IFSC code is mandatory.";
+        if (!selectedFiles.panFile && !user?.panFile)
+          return "Please upload PAN document.";
+      }
 
-      if (
-        !selectedFiles.passbookFile &&
-        !user?.bankDetails?.passbookFile
-      )
-        return "Please upload Bank Passbook.";
+      if (missingBank) {
+        if (!formData.bankName)
+          return "Bank name is mandatory.";
+
+        if (!formData.accountNumber)
+          return "Account number is mandatory.";
+
+        if (!formData.ifsc)
+          return "IFSC code is mandatory.";
+
+        if (
+          !selectedFiles.passbookFile &&
+          !user?.bankDetails?.passbookFile
+        )
+          return "Please upload Bank Passbook.";
+      }
+
     }
     return null;
   };
