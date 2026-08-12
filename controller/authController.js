@@ -30,8 +30,16 @@ export const register = async (req, res) => {
       aadhaar,
       bankDetails,
       dateOfBirth,
-      joiningDate
+      joiningDate,
+      leaveInfo
     } = req.body;
+
+    if (role === "admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Admin users cannot be created.",
+      });
+    }
 
     const files = req.files || {};
 
@@ -81,6 +89,22 @@ export const register = async (req, res) => {
         success: false,
         message: `User with this ${field} already exists`,
       });
+    }
+
+    let parsedLeaveInfo = {};
+
+    if (leaveInfo) {
+      try {
+        parsedLeaveInfo =
+          typeof leaveInfo === "string"
+            ? JSON.parse(leaveInfo)
+            : leaveInfo;
+      } catch (err) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid leaveInfo format",
+        });
+      }
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -249,6 +273,20 @@ export const register = async (req, res) => {
           : undefined,
       dateOfBirth: dateOfBirth || null,
       joiningDate,
+      leaveInfo: {
+        balance:
+          typeof parsedLeaveInfo.balance === "number"
+            ? parsedLeaveInfo.balance
+            : 0,
+
+        extraLOP:
+          typeof parsedLeaveInfo.extraLOP === "number"
+            ? parsedLeaveInfo.extraLOP
+            : 0,
+
+        updatedOn: new Date(),
+      },
+
       isActive: true,
       isPanVerified,
       panVerifiedBy: isPanVerified ? req.user._id : null,
@@ -1071,14 +1109,38 @@ export const updateUser = async (req, res) => {
       }
     }
 
-    if (leaveInfo && typeof leaveInfo.balance === "number") {
+    // Leave info
+    let parsedLeaveInfo = null;
+
+    if (leaveInfo) {
+      try {
+        parsedLeaveInfo =
+          typeof leaveInfo === "string"
+            ? JSON.parse(leaveInfo)
+            : leaveInfo;
+      } catch (err) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid leaveInfo format",
+        });
+      }
+    }
+
+    if (
+      parsedLeaveInfo &&
+      typeof parsedLeaveInfo.balance === "number"
+    ) {
       if (!isAdminOrHr) {
         return res.status(403).json({
           success: false,
           message: "Only Admins and HR can update leave balance manually",
         });
       }
-      updateData.leaveInfo = { balance: leaveInfo.balance, updatedOn: new Date() };
+
+      updateData.leaveInfo = {
+        balance: parsedLeaveInfo.balance,
+        updatedOn: new Date(),
+      };
     }
 
     if (updateData.dateOfBirth) {
