@@ -2,6 +2,7 @@ import React, { useState, useRef, useMemo, useEffect, useLayoutEffect } from 're
 import jsPDF from 'jspdf'
 import html2canvas from 'html2canvas'
 import iArtLogo from "../assets/logoiart.svg";
+import { saveAs } from "file-saver";
 
 /**
  * Client Invoice generator — fully client-side.
@@ -56,6 +57,64 @@ const formatDate = (date) => {
         year: "numeric",
     });
 };
+
+// ---- amount-in-words (Indian numbering: crore / lakh / thousand) -----
+
+const WORD_ONES = [
+    '', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten',
+    'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen',
+]
+const WORD_TENS = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety']
+
+const twoDigitWords = (n) => {
+    if (n < 20) return WORD_ONES[n]
+    const tens = Math.floor(n / 10)
+    const ones = n % 10
+    return `${WORD_TENS[tens]}${ones ? ' ' + WORD_ONES[ones] : ''}`
+}
+
+const threeDigitWords = (n) => {
+    const hundred = Math.floor(n / 100)
+    const rest = n % 100
+    let str = ''
+    if (hundred) str += `${WORD_ONES[hundred]} Hundred`
+    if (rest) str += `${str ? ' ' : ''}${twoDigitWords(rest)}`
+    return str
+}
+
+// Converts a non-negative integer into Indian-numbering words (Crore / Lakh / Thousand / Hundred).
+const integerToIndianWords = (num) => {
+    num = Math.floor(Math.abs(Number(num)) || 0)
+    if (num === 0) return 'Zero'
+
+    const crore = Math.floor(num / 10000000)
+    num %= 10000000
+    const lakh = Math.floor(num / 100000)
+    num %= 100000
+    const thousand = Math.floor(num / 1000)
+    num %= 1000
+    const hundred = num
+
+    const parts = []
+    if (crore) parts.push(`${threeDigitWords(crore)} Crore`)
+    if (lakh) parts.push(`${twoDigitWords(lakh)} Lakh`)
+    if (thousand) parts.push(`${twoDigitWords(thousand)} Thousand`)
+    if (hundred) parts.push(threeDigitWords(hundred))
+
+    return parts.join(' ')
+}
+
+// e.g. amountInWords(3555548.94) -> "Rupees Thirty-Five Lakh Fifty-Five Thousand Five
+// Hundred Forty-Eight and Ninety-Four Paise Only"
+const amountInWords = (amount) => {
+    const value = Number(amount) || 0
+    const rupees = Math.floor(value)
+    const paise = Math.round((value - rupees) * 100)
+
+    let words = `${integerToIndianWords(rupees)}`
+    if (paise > 0) words += ` and ${integerToIndianWords(paise)} Paise`
+    return `${words} Only`
+}
 
 // ---- small form primitives -------------------------------------------
 
@@ -173,6 +232,15 @@ export const ClientInvoice = () => {
         ifsc: "CNRB0018278",
         paymentDue: "Within 15 days from the invoice date.",
     });
+
+    // Digital signature — stored as a data URL so it can be embedded directly (no network
+    // fetch, no CORS issues) both in the on-screen preview and in the html2canvas capture.
+    const [signature, setSignature] = useState(null)
+
+    // Freeform extra rows for the "Invoice Details" box (beyond Invoice No. / Date / Due
+    // Date) — same add/remove pattern as the Items and Taxes sections below.
+    const [extraDetails, setExtraDetails] = useState([])
+
     const [generating, setGenerating] = useState(false)
 
     const previewRef = useRef(null)
@@ -231,6 +299,26 @@ export const ClientInvoice = () => {
         setTaxes((prev) => prev.map((t) => (t.id === id ? { ...t, [field]: value } : t)))
     const addTax = () => setTaxes((prev) => [...prev, { id: uid(), label: 'Tax', rate: 0 }])
     const removeTax = (id) => setTaxes((prev) => prev.filter((t) => t.id !== id))
+
+    // ---- signature handlers ----
+    const handleSignatureUpload = (e) => {
+        const file = e.target.files?.[0]
+        if (!file) return
+        if (!file.type.startsWith('image/')) {
+            alert('Please upload an image file (PNG, JPG, etc.) for the signature.')
+            return
+        }
+        const reader = new FileReader()
+        reader.onload = () => setSignature(reader.result) // data URL
+        reader.readAsDataURL(file)
+    }
+    const removeSignature = () => setSignature(null)
+
+    // ---- extra invoice-detail row handlers (mirrors items/taxes pattern) ----
+    const updateDetail = (id, field, value) =>
+        setExtraDetails((prev) => prev.map((d) => (d.id === id ? { ...d, [field]: value } : d)))
+    const addDetail = () => setExtraDetails((prev) => [...prev, { id: uid(), label: '', value: '' }])
+    const removeDetail = (id) => setExtraDetails((prev) => prev.filter((d) => d.id !== id))
 
     // ---- computed totals ----
     const subtotal = useMemo(
@@ -291,18 +379,104 @@ export const ClientInvoice = () => {
         }
     }
 
+
+    const handleGenerateWord = () => {
+        if (!previewRef.current) return;
+
+        // Clone so we don't modify the live preview
+        const clone = previewRef.current.cloneNode(true);
+
+        // Remove scaling
+        clone.style.transform = "none";
+        clone.style.width = `${A4_WIDTH}px`;
+        clone.style.height = "auto";
+
+        // Make images absolute so Word can display them
+        clone.querySelectorAll("img").forEach((img) => {
+            if (!img.src.startsWith("data:")) {
+                img.setAttribute("src", img.src);
+            }
+        });
+
+        const html = `
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+
+<style>
+
+@page{
+    size:A4;
+    margin:20mm;
+}
+
+body{
+    font-family:Arial,sans-serif;
+    background:#fff;
+    margin:0;
+    padding:0;
+}
+
+.invoice-page{
+    width:100%;
+    page-break-after:always;
+}
+
+table{
+    width:100%;
+    border-collapse:collapse;
+}
+
+th,td{
+    border:1px solid #d7dee8;
+    padding:6px;
+}
+
+img{
+    max-width:100%;
+}
+
+</style>
+
+</head>
+
+<body>
+
+${clone.outerHTML}
+
+</body>
+</html>
+`;
+
+        const blob = new Blob(["\ufeff", html], {
+            type: "application/msword",
+        });
+
+        saveAs(blob, `Invoice-${invoiceNumber}.doc`);
+    };
+
     return (
         <div className="p-4 sm:p-6 space-y-6 bg-[#F3F8FB] min-h-screen max-w-full overflow-x-hidden">
             <div className="flex items-center justify-between flex-wrap gap-3">
                 <h1 className="text-xl sm:text-2xl font-semibold text-gray-800">Client Invoice</h1>
-                <button
-                    type="button"
-                    onClick={handleGeneratePDF}
-                    disabled={generating}
-                    className="inline-flex items-center gap-2 rounded-lg bg-cyan-700 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-cyan-800 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
-                >
-                    {generating ? 'Generating…' : 'Generate PDF'}
-                </button>
+                <div className="flex gap-3">
+                    <button
+                        type="button"
+                        onClick={handleGenerateWord}
+                        className="inline-flex items-center gap-2 rounded-lg bg-blue-700 px-4 py-2.5 text-sm font-medium text-white"
+                    >
+                        Generate Word
+                    </button>
+                    <button
+                        type="button"
+                        onClick={handleGeneratePDF}
+                        disabled={generating}
+                        className="inline-flex items-center gap-2 rounded-lg bg-cyan-700 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-cyan-800 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+                    >
+                        {generating ? 'Generating…' : 'Generate PDF'}
+                    </button>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,700px)_1fr] gap-6 items-start">
@@ -513,6 +687,77 @@ export const ClientInvoice = () => {
                                 />
                             </div>
 
+                            {/* Additional freeform rows shown in the "Invoice Details" box on the
+                                preview — add/remove works the same way as the Items section below. */}
+                            <div className="pt-2 border-t border-gray-100 space-y-2">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-xs font-medium text-gray-500">Additional details</span>
+                                    <button
+                                        type="button"
+                                        onClick={addDetail}
+                                        className="text-xs font-medium text-cyan-700 hover:text-cyan-800"
+                                    >
+                                        + Add detail
+                                    </button>
+                                </div>
+                                {extraDetails.map((d) => (
+                                    <div key={d.id} className="flex gap-2 items-start">
+                                        <Field
+                                            className="flex-1"
+                                            placeholder="Label (e.g. PO Number)"
+                                            value={d.label}
+                                            onChange={(e) => updateDetail(d.id, 'label', e.target.value)}
+                                        />
+                                        <Field
+                                            className="flex-1"
+                                            placeholder="Value"
+                                            value={d.value}
+                                            onChange={(e) => updateDetail(d.id, 'value', e.target.value)}
+                                        />
+                                        <IconBtn danger title="Remove detail" onClick={() => removeDetail(d.id)}>
+                                            ✕
+                                        </IconBtn>
+                                    </div>
+                                ))}
+                                {extraDetails.length === 0 && (
+                                    <p className="text-xs text-gray-400">
+                                        Add extra rows to the Invoice Details box — e.g. PO Number, Project, Reference.
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+                    </Section>
+
+                    <Section title="Signature">
+                        <div className="space-y-2">
+                            <label className="block text-xs font-medium text-gray-500 mb-1">
+                                Upload digital signature
+                            </label>
+                            <input
+                                type="file"
+                                accept="image/*"
+                                onChange={handleSignatureUpload}
+                                className="block w-full text-sm text-gray-600 file:mr-3 file:rounded-lg file:border file:border-cyan-200 file:bg-white file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-cyan-700 hover:file:bg-cyan-50"
+                            />
+                            <p className="text-xs text-gray-400">
+                                Appears above "Authorised Signatory" on the last page of the invoice.
+                            </p>
+                            {signature && (
+                                <div className="flex items-center gap-3 mt-2">
+                                    <img
+                                        src={signature}
+                                        alt="Signature preview"
+                                        className="h-14 object-contain border border-gray-200 rounded-lg p-1 bg-white"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={removeSignature}
+                                        className="text-xs font-medium text-red-500 hover:text-red-600"
+                                    >
+                                        Remove signature
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     </Section>
 
@@ -746,6 +991,8 @@ export const ClientInvoice = () => {
                                         grandTotal={grandTotal}
                                         notes={notes}
                                         bank={bank}
+                                        signature={signature}
+                                        extraDetails={extraDetails}
                                     />
                                 </div>
                             </div>
@@ -782,6 +1029,8 @@ const InvoicePage = ({
     grandTotal,
     notes,
     bank,
+    signature,
+    extraDetails,
 }) => {
     const startNumber = pageIndex * ITEMS_PER_PAGE
 
@@ -925,6 +1174,15 @@ const InvoicePage = ({
                                 <span style={{ color: INK }}>{formatDate(meta.dueDate)}</span>
                             </div>
                         )}
+                        {extraDetails
+                            && extraDetails
+                                .filter((d) => d.label || d.value)
+                                .map((d) => (
+                                    <div key={d.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9.5, marginTop: 4 }}>
+                                        <span style={{ color: INK_LIGHT }}>{d.label || 'Detail'}</span>
+                                        <span style={{ color: INK }}>{d.value}</span>
+                                    </div>
+                                ))}
                     </div>
                 </div>
             )}
@@ -966,43 +1224,77 @@ const InvoicePage = ({
 
             {/* totals + thank-you note — last page only, mirrors the xlsx SUBTOTAL/TAX/Balance Due block */}
             {isLastPage && (
-                <div style={{ marginTop: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <p style={{ margin: 0, fontSize: 11, fontStyle: 'italic', color: INK_LIGHT, maxWidth: 260 }}>
-                        Thank you for your business!
-                    </p>
-                    <div style={{ width: 260 }}>
-                        <TotalRow label="Subtotal" value={money(subtotal)} />
-                        {Number(discount) > 0 && (
-                            <TotalRow label={`Discount (${discount}%)`} value={`-${money(discountAmount)}`} />
-                        )}
-                        {taxLines.map((t) => (
-                            <TotalRow key={t.id} label={`${t.label || 'Tax'} (${t.rate}%)`} value={money(t.amount)} />
-                        ))}
-                        <div
-                            style={{
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'center',
-                                marginTop: 8,
-                                paddingTop: 8,
-                                borderTop: `2px solid ${ACCENT}`,
-                            }}
-                        >
-                            <span style={{ fontSize: 12, fontWeight: 700, color: ACCENT_DARK }}>Balance Due</span>
-                            <span
+                <>
+                    <div style={{ marginTop: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <p style={{ margin: 0, fontSize: 11, fontStyle: 'italic', color: INK_LIGHT, maxWidth: 260 }}>
+                            Thank you for your business!
+                        </p>
+                        <div style={{ width: 260 }}>
+                            <TotalRow label="Subtotal" value={money(subtotal)} />
+                            {Number(discount) > 0 && (
+                                <TotalRow label={`Discount (${discount}%)`} value={`-${money(discountAmount)}`} />
+                            )}
+                            {taxLines.map((t) => (
+                                <TotalRow key={t.id} label={`${t.label || 'Tax'} (${t.rate}%)`} value={money(t.amount)} />
+                            ))}
+                            <div
                                 style={{
-                                    fontSize: 13,
-                                    fontWeight: 700,
-                                    color: INK,
-                                    padding: '4px 12px',
-                                    borderRadius: 3,
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center',
+                                    marginTop: 8,
+                                    // paddingTop: 8,
+                                    borderTop: `2px solid ${ACCENT}`,
+                                    borderBottom: `2px solid ${ACCENT}`,
                                 }}
                             >
-                                {money(grandTotal)}
-                            </span>
+                                <span style={{ fontSize: 12, fontWeight: 700, color: ACCENT_DARK }}>Balance Due</span>
+                                <span
+                                    style={{
+                                        fontSize: 13,
+                                        fontWeight: 700,
+                                        color: ACCENT_DARK,
+                                        padding: '4px 12px',
+                                        borderRadius: 3,
+                                    }}
+                                >
+                                    {money(grandTotal)}
+                                </span>
+                            </div>
                         </div>
                     </div>
-                </div>
+
+                    {/* Amount in words — its own callout box, full page width, echoing the
+                        Bill To / Invoice Details box styling used elsewhere on the page. */}
+                    <div
+                        style={{
+                            marginTop: 14,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 10,
+                            border: `1px solid ${BORDER}`,
+                            borderRadius: 4,
+                            padding: '10px 14px',
+                        }}
+                    >
+                        <span
+                            style={{
+                                flexShrink: 0,
+                                fontSize: 9.5,
+                                fontWeight: 700,
+                                color: ACCENT_DARK,
+                                textTransform: 'uppercase',
+                                letterSpacing: 0.5,
+                            }}
+                        >
+                            Amount in Words
+                        </span>
+                        <span style={{ width: 1, alignSelf: 'stretch', backgroundColor: '#AFC6EE' }} />
+                        <span style={{ fontSize: 10.5, color: INK, fontWeight: 600, lineHeight: 1.5 }}>
+                            {amountInWords(grandTotal)}
+                        </span>
+                    </div>
+                </>
             )}
 
 
@@ -1041,7 +1333,18 @@ const InvoicePage = ({
                             >
                                 for iART TECHNOLOGIES Pvt Ltd
                             </p>
-                            <div style={{ display: 'flex', justifyContent: 'end', fontSize: 9.5, marginTop: 25 }}>
+                            {signature ? (
+                                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                                    <img
+                                        src={signature}
+                                        alt="Authorised signature"
+                                        style={{ height: 100, objectFit: 'contain', marginTop: 6 }}
+                                    />
+                                </div>
+                            ) : (
+                                <div style={{ height: 10, marginTop: 6 }} />
+                            )}
+                            <div style={{ display: 'flex', justifyContent: 'end', fontSize: 9.5, marginTop: signature ? 4 : 25 }}>
                                 <span style={{ color: INK, fontWeight: 600 }}>Authorised Signatory</span>
                             </div>
                         </div>
