@@ -35,7 +35,7 @@ export async function uploadToS3(buffer, fileName, mimeType) {
     const command = new PutObjectCommand(params);
     await s3Client.send(command);
     const url = `https://${process.env.AWS_S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${params.Key}`;
-    return { Location: url, mimeType };
+    return { Location: url, Key: params.Key, mimeType };
   } catch (error) {
     throw error;
   }

@@ -1,5 +1,31 @@
 import express from "express";
-import { register, login, getAllUsers, getProfile, deleteUser, updateUser, getPendingVerificationRequests, reviewAllPendingVerification, reviewPendingVerification, toggleUserStatus, getAllUsersPhoneBook } from "../controller/authController.js";
+import {
+    register,
+    login,
+    getAllUsers,
+    getProfile,
+    deleteUser,
+    updateUser,
+    getPendingVerificationRequests,
+    getWebsiteContacts,
+    websiteTrainingSubmit,
+    reviewAllPendingVerification,
+    websiteContactUs,
+    reviewPendingVerification,
+    toggleUserStatus,
+    getAllUsersPhoneBook,
+    getWebsiteTraining,
+    createCareerPost,
+    updateCareerPost,
+    closeCareerPost,
+    getAllCareerPosts,
+    getWebsiteOpportunities,
+    getOpportunities,
+    getOpportunitiesDetails,
+    applyForCareer,
+    getCareerPostById,
+    updateCareerApplicationStatus
+} from "../controller/authController.js";
 import { protect } from "../middleware/authMiddleware.js";
 import multer from "multer";
 
@@ -14,7 +40,13 @@ const uploadFields = upload.fields([
     { name: "cancelledChequeFile", maxCount: 1 },
     { name: "passbookFile", maxCount: 1 },
     { name: "profilePhoto", maxCount: 1 },
+    { name: "resume", maxCount: 1 },
 ]);
+
+const uploadResume = upload.fields([
+    { name: "resume", maxCount: 1 },
+]);
+
 
 router.post("/register", protect, uploadFields, register);
 router.post("/login", login);
@@ -27,5 +59,23 @@ router.put("/:id", protect, uploadFields, updateUser);
 router.patch("/users/:userId/status", protect, toggleUserStatus);
 router.patch("/actionPendingVerification/:id", protect, reviewPendingVerification);
 router.patch("/actionPendingVerification/:id/review-all", protect, reviewAllPendingVerification);
+
+router.get("/website-contacts", protect, getWebsiteContacts);
+router.get("/website-training", protect, getWebsiteTraining);
+router.post("/career-posts", protect, createCareerPost);
+router.put("/career-post/:id", protect, updateCareerPost);
+router.put("/career-post/:id/close", protect, closeCareerPost);
+router.get("/career-posts", protect, getAllCareerPosts);
+router.get("/website-opportunities", protect, getWebsiteOpportunities);
+router.get("/career-posts/:id", protect, getCareerPostById);
+router.put("/application-update/:id", protect, updateCareerApplicationStatus);
+
+// ********************************************************WEBISTE API's ROUTES**********************************************************************
+router.post("/contact-us", websiteContactUs);
+router.post("/training-submit", uploadFields, websiteTrainingSubmit);
+router.get("/career", getOpportunities);
+router.get("/career/:id", getOpportunitiesDetails);
+router.post("/career/apply", uploadResume, applyForCareer);
+
 
 export default router;

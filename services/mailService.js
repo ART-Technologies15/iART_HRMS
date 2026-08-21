@@ -359,4 +359,71 @@ export const sendBroadcast = async ({ adminId, subject, message, userIds }) => {
     });
 };
 
-export default { sendLeaveAppliedNotification, sendLeaveAppliedSelfNotification, sendRegularizationNotification, sendRegularizationSelfNotification, sendBroadcast };
+export const sendContactUsNotification = async (contact) => {
+    try {
+        // Only admins should receive this — never HR or any other role
+        const admins = await User.find({
+            role: { $regex: /^admin$/i },
+            email: { $exists: true, $ne: "" },
+        }).select("email");
+
+        const adminEmails = admins.map((a) => a.email);
+
+        if (adminEmails.length === 0) {
+            console.warn("No Admin emails found for contact us notification");
+            return;
+        }
+
+        const html = renderTemplate("websiteContactUs.html", {
+            name: contact.name || "-",
+            email: contact.email || "-",
+            phone: contact.phone || "-",
+            service: contact.service || "-",
+            budget: contact.budget || "-",
+            message: contact.message || "-",
+        });
+
+        await mailer.sendMail({
+            replyTo: contact.email,
+            to: adminEmails,
+            subject: `New Contact Us Submission: ${contact.name || "Website Visitor"}`,
+            html,
+        });
+    } catch (err) {
+        console.error("Contact Us Notification Error:", err);
+    }
+};
+
+export const sendContactUsSelfNotification = async (contact) => {
+    try {
+        if (!contact?.email) return;
+
+        const html = renderTemplate("websiteContactUsSelf.html", {
+            name: contact.name || "there",
+            email: contact.email || "-",
+            phone: contact.phone || "-",
+            service: contact.service || "-",
+            budget: contact.budget || "-",
+            message: contact.message || "-",
+        });
+
+        await mailer.sendMail({
+            from: `"iART Technologies" <${process.env.SMTP_USER}>`,
+            to: contact.email,
+            subject: "Thank You for Contacting Us",
+            html,
+        });
+    } catch (err) {
+        console.error("Contact Us Self Notification Error:", err);
+    }
+};
+
+export default {
+    sendLeaveAppliedNotification,
+    sendLeaveAppliedSelfNotification,
+    sendRegularizationNotification,
+    sendRegularizationSelfNotification,
+    sendBroadcast,
+    sendContactUsNotification,
+    sendContactUsSelfNotification
+};
