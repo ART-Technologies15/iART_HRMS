@@ -37,8 +37,6 @@ export const getProfileAccount = async (params = {}) => {
 
 export const updateUser = async (id, data) => {
   const res = await axiosInstance.put(`/auth/${id}`, data);
-  console.log(res);
-  
   return res.data;
 };
 
@@ -66,5 +64,40 @@ export const reviewPendingVerification = async (id, data) => {
 
 export const reviewAllPendingVerification = async (id) => {
   const res = await axiosInstance.patch(`/auth/actionPendingVerification/${id}/review-all`);
+  return res.data;
+};
+
+export const getWebsiteContacts = async (params = {}) => {
+  const res = await axiosInstance.get("/auth/website-contacts", { params });
+  return res.data;
+};
+
+export const createCareerPost = async (data) => {
+  const res = await axiosInstance.post("/auth/career-posts", data);
+  return res.data;
+};
+
+export const updateCareerPost = async (id, data) => {
+  const res = await axiosInstance.put(`/auth/career-post/${id}`, data);
+  return res.data;
+};
+
+export const closeCareerPost = async (id, data) => {
+  const res = await axiosInstance.put(`/auth/career-post/${id}/close`, data);
+  return res.data;
+};
+
+export const getWebsiteOpportunities = async (params = {}) => {
+  const res = await axiosInstance.get("/auth/website-opportunities", { params });
+  return res.data;
+};
+
+export const getCareerPostById = async (id) => {
+  const res = await axiosInstance.get(`/auth/career-posts/${id}`);
+  return res.data;
+};
+
+export const updateCareerApplicationStatus = async (id, data) => {
+  const res = await axiosInstance.put(`/auth/application-update/${id}`, data);
   return res.data;
 };

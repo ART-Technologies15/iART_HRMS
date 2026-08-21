@@ -23,6 +23,9 @@ import MyAssetsPage from "./pages/MyAssetsPage";
 import PublicAssetPage from "./pages/PublicAssetPage";
 import AdminPendingVerificationRequest from "./pages/AdminPendingVerificationRequest";
 import { ClientInvoice } from "./pages/ClientInvoice";
+import WebsiteContactUs from "./pages/WebsiteContactUs";
+import { CareerAndTraining } from "./pages/CareerAndTraining";
+import { JobDetails } from "./pages/JobDetails";
 
 const App = () => {
   return (
@@ -153,6 +156,30 @@ const App = () => {
             element={
               <AdminHrRoute>
                 <AdminAssestsPage />
+              </AdminHrRoute>
+            }
+          />
+          <Route
+            path="/website-contact-us"
+            element={
+              <AdminRoute>
+                <WebsiteContactUs />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/career"
+            element={
+              <AdminHrRoute>
+                <CareerAndTraining />
+              </AdminHrRoute>
+            }
+          />
+          <Route
+            path="/job-details/:id"
+            element={
+              <AdminHrRoute>
+                <JobDetails />
               </AdminHrRoute>
             }
           />
