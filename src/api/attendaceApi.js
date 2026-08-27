@@ -60,9 +60,9 @@ export const getAdminAttendanceByDate = async (date) => {
   return res.data;
 };
 
-export const getAdminMonthlyAttendance = async (month, year) => {
+export const getAdminMonthlyAttendance = async (month, year, role) => {
   const res = await axiosInstance.get(`/attendance/admin/monthly`, {
-    params: { month, year },
+    params: { month, year, role },
   });
   return res.data;
 };

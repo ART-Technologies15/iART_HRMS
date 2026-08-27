@@ -1,5 +1,14 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Search, SlidersHorizontal, Plus, Menu } from "lucide-react";
+import {
+  Search,
+  SlidersHorizontal,
+  Plus,
+  Menu,
+  Pencil,
+  CalendarDays,
+  Package,
+  Trash2,
+} from "lucide-react";
 import CustomTable from "../components/CustomTable";
 import UserDetailsModal from "../components/UserDetailsModal";
 import AdminUserFilterModal from "../components/AdminUserFilterModal";
@@ -276,45 +285,57 @@ const AdminUsersPage = () => {
       label: "Actions",
       accessor: "actions",
       render: (_, row) => (
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex items-center gap-2">
           <button
-            className="px-2 py-1 text-xs bg-blue-600 text-white rounded whitespace-nowrap cursor-pointer"
+            type="button"
             onClick={(e) => {
               e.stopPropagation();
               setAddUserOpen(row);
             }}
+            title="Edit User"
+            aria-label="Edit User"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-gray-200 text-gray-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600"
           >
-            Edit
+            <Pencil size={15} />
           </button>
           <button
-            className="px-2 py-1 text-xs bg-green-600 text-white rounded whitespace-nowrap cursor-pointer"
+            type="button"
             onClick={(e) => {
               e.stopPropagation();
               navigate("/user-attendance", { state: { user: row } });
             }}
+            title="View Attendance"
+            aria-label="View Attendance"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-gray-200 text-gray-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600"
           >
-            Attendance
+            <CalendarDays size={15} />
           </button>
           <button
-            className="px-2 py-1 text-xs bg-violet-600 text-white rounded whitespace-nowrap cursor-pointer"
+            type="button"
             onClick={(e) => {
               e.stopPropagation();
               setSelectedEmployee(row);
               setEmployeeAssetsOpen(true);
             }}
+            title="View Assets"
+            aria-label="View Assets"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-gray-200 text-gray-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600"
           >
-            Assets
+            <Package size={15} />
           </button>
           {
             user?.role === "admin" && (
               <button
-                className="px-2 py-1 text-xs bg-red-600 text-white rounded whitespace-nowrap cursor-pointer"
+                type="button"
                 onClick={(e) => {
                   e.stopPropagation();
                   setDeleteUser(row);
                 }}
+                title="Delete User"
+                aria-label="Delete User"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-red-200 text-red-500 transition hover:bg-red-50 hover:text-red-600"
               >
-                Delete
+                <Trash2 size={15} />
               </button>
             )
           }

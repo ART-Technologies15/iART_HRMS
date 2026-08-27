@@ -72,6 +72,8 @@ const attendanceTypeFromTimes = (dateStr, inHHMM, outHHMM) => {
 
 const EditAttendanceModal = ({ open, onClose, attendance, onSubmit }) => {
   const [form, setForm] = useState(defaultForm);
+  const [showClearConfirmation, setShowClearConfirmation] = useState(false);
+  const [attendanceCleared, setAttendanceCleared] = useState(false);
 
   // Options for dropdowns
   const hours = Array.from({ length: 12 }, (_, i) =>
@@ -84,6 +86,9 @@ const EditAttendanceModal = ({ open, onClose, attendance, onSubmit }) => {
 
   useEffect(() => {
     if (!open) return;
+
+    setShowClearConfirmation(false);
+    setAttendanceCleared(false);
 
     if (attendance) {
       const inParts = isoTo12hParts(attendance.punchIn);
@@ -361,30 +366,62 @@ const EditAttendanceModal = ({ open, onClose, attendance, onSubmit }) => {
           {(form.punchInHour ||
             form.punchInMinute ||
             form.punchOutHour ||
-            form.punchOutMinute) && (
-            <button
-              onClick={() => {
-                if (
-                  window.confirm(
-                    "Are you sure you want to clear this attendance?"
-                  )
-                ) {
-                  setForm((prev) => ({
-                    ...prev,
-                    punchInHour: "",
-                    punchInMinute: "",
-                    punchInPeriod: "AM",
-                    punchOutHour: "",
-                    punchOutMinute: "",
-                    punchOutPeriod: "AM",
-                  }));
-                  toast.success("Attendance cleared. Click Save to confirm.");
-                }
-              }}
-              className="px-4 py-2 border border-red-500 text-red-600 rounded"
-            >
-              Clear Attendance
-            </button>
+            form.punchOutMinute) && !attendanceCleared && (
+              <>
+                {!showClearConfirmation ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowClearConfirmation(true)}
+                    className="px-4 py-2 border border-red-500 text-red-600 rounded hover:bg-red-50 transition"
+                  >
+                    Clear Attendance
+                  </button>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-600">
+                      Clear attendance?
+                    </span>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setForm((prev) => ({
+                          ...prev,
+                          punchInHour: "",
+                          punchInMinute: "",
+                          punchInPeriod: "AM",
+                          punchOutHour: "",
+                          punchOutMinute: "",
+                          punchOutPeriod: "AM",
+                        }));
+
+                        setShowClearConfirmation(false);
+                        setAttendanceCleared(true);
+                      }}
+                      className="px-3 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition"
+                    >
+                      Yes
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setShowClearConfirmation(false)}
+                      className="px-3 py-2 border border-gray-300 rounded hover:bg-gray-50 transition"
+                    >
+                      No
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+
+          {/* Clear confirmation message */}
+          {attendanceCleared && (
+            <div className="flex items-center gap-2 text-sm text-green-600">
+              <span className="font-medium">
+                Attendance cleared. Click Save to confirm.
+              </span>
+            </div>
           )}
 
           <button onClick={onClose} className="px-4 py-2 border rounded">

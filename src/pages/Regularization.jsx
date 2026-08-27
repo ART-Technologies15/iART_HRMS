@@ -28,6 +28,14 @@ const statusBadgeCls = {
 
 const SEARCH_DEBOUNCE_MS = 400;
 
+const getCurrentMonth = () => {
+    const now = new Date();
+
+    return `${now.getFullYear()}-${String(
+        now.getMonth() + 1
+    ).padStart(2, "0")}`;
+};
+
 const Regularization = () => {
     const [requests, setRequests] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -37,6 +45,7 @@ const Regularization = () => {
 
     const [statusFilter, setStatusFilter] = useState("");
     const [requestTypeFilter, setRequestTypeFilter] = useState("");
+    const [monthFilter, setMonthFilter] = useState(getCurrentMonth);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
     const [editRow, setEditRow] = useState(null);
@@ -70,6 +79,7 @@ const Regularization = () => {
                 status: statusFilter || undefined,
                 requestType: requestTypeFilter || undefined,
                 search: search || undefined,
+                month: monthFilter || undefined,
                 page: pagination.page,
                 limit: pagination.limit,
             });
@@ -92,7 +102,7 @@ const Regularization = () => {
             setLoading(false);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [statusFilter, requestTypeFilter, search, pagination.page, pagination.limit]);
+    }, [statusFilter, requestTypeFilter, search, monthFilter, pagination.page, pagination.limit]);
 
     useEffect(() => {
         fetchRequests();
@@ -233,7 +243,7 @@ const Regularization = () => {
             label: "Reason",
             accessor: "reason",
             render: (val) => (
-                <span className="line-clamp-1 max-w-[180px] block" title={val}>
+                <span className="line-clamp-1 max-w-[100px] block" title={val}>
                     {val}
                 </span>
             ),
@@ -313,6 +323,20 @@ const Regularization = () => {
 
                 {/* Desktop Controls */}
                 <div className="hidden sm:flex items-center gap-2">
+                    {/* Month */}
+                    <input
+                        type="month"
+                        value={monthFilter}
+                        onChange={(e) => {
+                            setMonthFilter(e.target.value);
+                            setPagination((prev) => ({
+                                ...prev,
+                                page: 1,
+                            }));
+                        }}
+                        className="bg-white border border-gray-300 px-3 py-2 rounded-lg text-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    />
+
                     <select
                         value={statusFilter}
                         onChange={(e) => {

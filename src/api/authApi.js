@@ -101,3 +101,13 @@ export const updateCareerApplicationStatus = async (id, data) => {
   const res = await axiosInstance.put(`/auth/application-update/${id}`, data);
   return res.data;
 };
+
+export const getClientInvoiceNumber = async (params = {}) => {
+  const res = await axiosInstance.get(`/auth/client-invoice/next-number`, { params });
+  return res.data;
+};
+
+export const createClientInvoiceNumber = async (data) => {
+  const res = await axiosInstance.post("/auth/client-invoice", data);
+  return res.data;
+};

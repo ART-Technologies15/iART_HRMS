@@ -107,7 +107,7 @@ const RegularizationModal = ({
 
         punchOutHour: "",
         punchOutMinute: "",
-        punchOutPeriod: "AM",
+        punchOutPeriod: "PM",
     });
 
     const [reviewStatus, setReviewStatus] = useState("");
@@ -143,7 +143,7 @@ const RegularizationModal = ({
 
                 punchOutHour: outParts.hour,
                 punchOutMinute: outParts.minute,
-                punchOutPeriod: outParts.period,
+                punchOutPeriod: attendanceRow.punchOut ? outParts.period : "PM",
             });
         } else if ((isEdit || isReview) && regularization) {
             const inParts = isoTo12hParts(regularization.requestedPunchIn);
@@ -160,7 +160,7 @@ const RegularizationModal = ({
 
                 punchOutHour: outParts.hour,
                 punchOutMinute: outParts.minute,
-                punchOutPeriod: outParts.period,
+                punchOutPeriod: regularization.requestedPunchOut ? outParts.period : "PM",
             });
         }
 
@@ -216,7 +216,7 @@ const RegularizationModal = ({
                     if (name.startsWith("punchOut")) {
                         updated.punchOutHour = "";
                         updated.punchOutMinute = "";
-                        updated.punchOutPeriod = "AM";
+                        updated.punchOutPeriod = "PM";
                     } else {
                         updated.punchInHour = "";
                         updated.punchInMinute = "";

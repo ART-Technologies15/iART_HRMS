@@ -133,15 +133,15 @@ export const WebsiteContactUs = () => {
             ),
         },
 
-        {
-            label: "Budget",
-            accessor: "budget",
-            render: (value) => (
-                <span className="inline-flex rounded-full bg-green-50 px-2.5 py-1 text-xs font-medium text-green-700">
-                    {value || "-"}
-                </span>
-            ),
-        },
+        // {
+        //     label: "Budget",
+        //     accessor: "budget",
+        //     render: (value) => (
+        //         <span className="inline-flex rounded-full bg-green-50 px-2.5 py-1 text-xs font-medium text-green-700">
+        //             {value || "-"}
+        //         </span>
+        //     ),
+        // },
 
         {
             label: "Message",

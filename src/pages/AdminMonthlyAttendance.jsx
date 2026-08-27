@@ -9,6 +9,7 @@ const AdminMonthlyAttendance = () => {
 
   const [month, setMonth] = useState(today.getMonth() + 1);
   const [year, setYear] = useState(today.getFullYear());
+  const [role, setRole] = useState("employee/hr");
   const [rows, setRows] = useState([]);
   const [usersList, setUsersList] = useState([]);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -21,7 +22,7 @@ const AdminMonthlyAttendance = () => {
     try {
       setLoading(true);
 
-      const res = await getAdminMonthlyAttendance(month, year);
+      const res = await getAdminMonthlyAttendance(month, year, role);
 
       const days = res?.data || [];
 
@@ -29,12 +30,13 @@ const AdminMonthlyAttendance = () => {
 
       days.forEach((d) => {
         (d.users || []).forEach((u) => {
-          allUsers.set(u.userId, { name: u.name, lop: u.lop, leaveBalance: u.leaveBalance });
+          allUsers.set(u.userId, { name: u.name, role: u.role, lop: u.lop, leaveBalance: u.leaveBalance });
         });
       });
       const userColumns = Array.from(allUsers.entries()).map(([id, data]) => ({
         id,
         name: data.name,
+        role: data.role,
         lop: data.lop,
         leaveBalance: data.leaveBalance
       }));
@@ -91,7 +93,7 @@ const AdminMonthlyAttendance = () => {
 
   useEffect(() => {
     fetchMonthlyData();
-  }, [month, year]);
+  }, [month, year, role]);
 
   /* --------------------------------------------
      CALCULATE STATISTICS
@@ -248,6 +250,16 @@ const AdminMonthlyAttendance = () => {
               </option>
             ))}
           </select>
+
+          <select
+            value={role}
+            onChange={(e) => setRole(e.target.value)}
+            className="border border-gray-300 rounded-md px-3 py-1.5 text-sm"
+          >
+            <option value="employee/hr">Employee/HR</option>
+            <option value="intern">Intern</option>
+            <option value="trainee">Trainee</option>
+          </select>
         </div>
 
         <button
@@ -260,7 +272,7 @@ const AdminMonthlyAttendance = () => {
 
       {/* -------------------------------- Mobile Filters ------------------------------- */}
       {mobileMenuOpen && (
-        <div className="lg:hidden grid grid-cols-1 sm:grid-cols-2 gap-3 pb-4 border-b border-gray-200 shrink-0">
+        <div className="lg:hidden grid grid-cols-1 sm:grid-cols-3 gap-3 pb-4 border-b border-gray-200 shrink-0">
           <select
             value={month}
             onChange={(e) => setMonth(Number(e.target.value))}
@@ -283,6 +295,15 @@ const AdminMonthlyAttendance = () => {
                 {yr}
               </option>
             ))}
+          </select>
+          <select
+            value={role}
+            onChange={(e) => setRole(e.target.value)}
+            className="border border-gray-300 rounded-md px-3 py-1.5 text-sm"
+          >
+            <option value="employee/hr">Employee/HR</option>
+            <option value="intern">Intern</option>
+            <option value="trainee">Trainee</option>
           </select>
         </div>
       )}
@@ -313,32 +334,39 @@ const AdminMonthlyAttendance = () => {
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex-1 min-h-0">
           <div className="overflow-auto h-full">
             <table className="w-full text-sm" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
-              <thead className="bg-slate-50 border-b border-slate-200">
-                <tr>
-                  {/*
-                    Sticky is set on each <th>/<td> individually (not on
-                    <thead>) since that's what works reliably inside a
-                    scrolling container. Corner cell sticks both top and
-                    left so it stays pinned no matter which direction
-                    you scroll.
-                  */}
-                  <th
-                    className="py-2 px-2 text-left font-semibold text-slate-600 whitespace-nowrap sticky top-0 left-0 bg-slate-50 z-40"
-                    style={{ minWidth: '100px' }}
-                  >
-                    Date
-                  </th>
-                  {usersList.map((user) => (
-                    <th
-                      key={user.id}
-                      className="py-2 px-2 text-center font-semibold text-slate-600 whitespace-nowrap sticky top-0 bg-slate-50 z-20"
-                      style={{ minWidth: '100px' }}
-                    >
-                      {user.name}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
+            <thead className="bg-slate-50 border-b border-slate-200">
+  <tr>
+    <th
+      className="py-2.5 px-3 text-left font-semibold text-slate-600 whitespace-nowrap sticky top-0 left-0 bg-slate-50 z-40"
+      style={{ minWidth: "120px" }}
+    >
+      Date
+    </th>
+
+    {usersList.map((user) => (
+      <th
+        key={user.id}
+        className="py-2.5 px-3 text-center sticky top-0 bg-slate-50 z-20"
+        style={{ minWidth: "130px" }}
+      >
+        <div className="flex flex-col items-center justify-center gap-1">
+          {/* User Name */}
+          <span
+            className="font-semibold text-slate-700 text-sm max-w-[120px] truncate"
+            title={user.name}
+          >
+            {user.name}
+          </span>
+
+          {/* Role */}
+          <span className="text-[10px] font-medium uppercase tracking-wide text-slate-500 bg-slate-200 px-2 py-0.5 rounded-full">
+            {user.role}
+          </span>
+        </div>
+      </th>
+    ))}
+  </tr>
+</thead>
               <tbody>
                 {rows.map((row, rowIdx) => (
                   <tr

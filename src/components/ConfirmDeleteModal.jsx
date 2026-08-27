@@ -1,7 +1,14 @@
 import React from "react";
 import { X, AlertTriangle } from "lucide-react";
 
-const ConfirmDeleteModal = ({ open, onClose, onConfirm, title, message }) => {
+const ConfirmDeleteModal = ({
+  open,
+  onClose,
+  onConfirm,
+  title,
+  message,
+  confirmLabel = "Delete",
+}) => {
   if (!open) return null;
 
   return (
@@ -38,7 +45,7 @@ const ConfirmDeleteModal = ({ open, onClose, onConfirm, title, message }) => {
             onClick={onConfirm}
             className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
           >
-            Delete
+            {confirmLabel}
           </button>
         </div>
       </div>

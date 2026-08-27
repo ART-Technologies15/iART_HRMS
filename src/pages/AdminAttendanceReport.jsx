@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useLocation, useNavigate } from "react-router-dom";
-import { Search, Calendar, Download } from "lucide-react";
+import { Search, Calendar, Pencil } from "lucide-react";
 import { AreaChart, Area, ResponsiveContainer } from "recharts";
 import CustomTable from "../components/CustomTable";
 import DashboardCard from "../components/DashboardCard";
@@ -196,10 +196,13 @@ const AdminAttendanceReport = () => {
         accessor: "actions",
         render: (_, row) => (
           <button
+            type="button"
             onClick={() => setEditRow(row)}
-            className="px-3 py-1 text-sm text-white bg-blue-600 hover:bg-blue-700 rounded-lg"
+            title="Edit Leave"
+            aria-label="Edit Leave"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-gray-200 text-gray-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600"
           >
-            Edit
+            <Pencil size={15} />
           </button>
         ),
       },

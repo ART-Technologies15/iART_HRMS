@@ -12,6 +12,7 @@ import {
   adminMarkPending,
 } from "../api/leaveApi";
 import CustomTable from "../components/CustomTable";
+import ConfirmDeleteModal from "../components/ConfirmDeleteModal";
 import RejectModal from "../components/RejectModal";
 import FilterModal from "../components/FilterModal";
 import LeaveFormModal from "../components/LeaveForm";
@@ -48,6 +49,12 @@ const LeavesPage = () => {
 
   const [leaves, setLeaves] = useState([]);
   const [rejectModal, setRejectModal] = useState({ open: false, leave: null });
+  const [confirmation, setConfirmation] = useState({
+    open: false,
+    action: "",
+    leave: null,
+    reason: "",
+  });
 
   const [filters, setFilters] = useState({
     employee: "",
@@ -204,6 +211,53 @@ const LeavesPage = () => {
     }
   };
 
+  const requestConfirmation = (action, leave, reason = "") => {
+    setConfirmation({ open: true, action, leave, reason });
+  };
+
+  const closeConfirmation = () => {
+    setConfirmation({ open: false, action: "", leave: null, reason: "" });
+  };
+
+  const handleConfirmedAction = async () => {
+    const { action, leave, reason } = confirmation;
+    closeConfirmation();
+
+    if (action === "cancel") await handleCancel(leave);
+    if (action === "reapply") await handleReapply(leave);
+    if (action === "approve") await handleApprove(leave);
+    if (action === "reject") await handleReject(leave, reason);
+    if (action === "pending") await handleMarkPending(leave);
+  };
+
+  const confirmationDetails = {
+    cancel: {
+      title: "Cancel Leave",
+      message: "Are you sure you want to cancel this leave request?",
+      label: "Cancel Leave",
+    },
+    reapply: {
+      title: "Reapply Leave",
+      message: "Are you sure you want to move this leave request back to pending?",
+      label: "Reapply",
+    },
+    approve: {
+      title: "Approve Leave",
+      message: "Are you sure you want to approve this leave request?",
+      label: "Approve",
+    },
+    reject: {
+      title: "Reject Leave",
+      message: "Are you sure you want to reject this leave request?",
+      label: "Reject",
+    },
+    pending: {
+      title: "Mark Leave Pending",
+      message: "Are you sure you want to move this leave request back to pending?",
+      label: "Mark Pending",
+    },
+  };
+
   // client filters
   const filteredLeaves = leaves.filter((l) => {
     if (
@@ -277,7 +331,14 @@ const LeavesPage = () => {
         label: "Reason",
         accessor: "reason",
         render: (value) => (
-          <span className="text-sm text-gray-700">{value ?? "-"}</span>
+          <div
+            className="w-[180px] max-w-[180px] sm:w-[220px] sm:max-w-[220px] lg:w-[280px] lg:max-w-[280px]"
+            title={value || "-"}
+          >
+            <p className="text-sm text-gray-700 whitespace-normal break-words">
+              {value ?? "-"}
+            </p>
+          </div>
         ),
       },
 
@@ -326,34 +387,43 @@ const LeavesPage = () => {
           // USER CONTROLS
           if (isUser) {
             return (
-              <div className="flex gap-2">
+              <div className="flex items-center gap-2">
                 {/* Edit Button - only for pending & owner */}
                 {isPending && isUser && (
                   <button
+                    type="button"
                     onClick={() => handleEditOpen(row)}
-                    className="px-2 py-1 text-xs rounded border hover:bg-gray-50 flex items-center gap-1"
+                    title="Edit Leave"
+                    aria-label="Edit Leave"
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-gray-200 text-gray-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600"
                   >
-                    <Pencil size={14} /> Edit
+                    <Pencil size={15} />
                   </button>
                 )}
 
                 {/* Cancel Button - if not cancelled or rejected */}
                 {row.status !== "cancelled" && row.status !== "rejected" && (
                   <button
-                    onClick={() => handleCancel(row)}
-                    className="px-2 py-1 text-xs rounded border hover:bg-gray-50 flex items-center gap-1"
+                    type="button"
+                    onClick={() => requestConfirmation("cancel", row)}
+                    title="Cancel Leave"
+                    aria-label="Cancel Leave"
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-red-200 text-red-500 transition hover:bg-red-50 hover:text-red-600"
                   >
-                    <Ban size={14} /> Cancel
+                    <Ban size={15} />
                   </button>
                 )}
 
                 {/* Reapply Button - only if cancelled */}
                 {row.status === "cancelled" && (
                   <button
-                    onClick={() => handleReapply(row)}
-                    className="px-2 py-1 text-xs rounded bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-1"
+                    type="button"
+                    onClick={() => requestConfirmation("reapply", row)}
+                    title="Reapply Leave"
+                    aria-label="Reapply Leave"
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-gray-200 text-gray-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600"
                   >
-                    <Check size={14} /> Reapply
+                    <Check size={15} />
                   </button>
                 )}
               </div>
@@ -362,31 +432,40 @@ const LeavesPage = () => {
 
           // ADMIN CONTROLS
           return (
-            <div className="flex gap-2">
+            <div className="flex items-center gap-2">
               {row.status !== "cancelled" && row.status !== "approved" && (
                 <button
-                  onClick={() => handleApprove(row)}
-                  className="px-2 py-1 text-xs rounded bg-green-600 hover:bg-green-700 text-white flex items-center gap-1"
+                  type="button"
+                  onClick={() => requestConfirmation("approve", row)}
+                  title="Approve Leave"
+                  aria-label="Approve Leave"
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-green-200 text-green-600 transition hover:bg-green-50 hover:text-green-700"
                 >
-                  <Check size={14} /> Approve
+                  <Check size={15} />
                 </button>
               )}
 
               {row.status !== "cancelled" && row.status !== "rejected" && (
                 <button
+                  type="button"
                   onClick={() => setRejectModal({ open: true, leave: row })}
-                  className="px-2 py-1 text-xs rounded bg-rose-600 hover:bg-rose-700 text-white flex items-center gap-1"
+                  title="Reject Leave"
+                  aria-label="Reject Leave"
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-red-200 text-red-500 transition hover:bg-red-50 hover:text-red-600"
                 >
-                  <XCircle size={14} /> Reject
+                  <XCircle size={15} />
                 </button>
               )}
 
               {(row.status === "approved" || row.status === "rejected") && (
                 <button
-                  onClick={() => handleMarkPending(row)}
-                  className="px-2 py-1 text-xs rounded border bg-orange-300 hover:bg-orange-400 flex items-center gap-1"
+                  type="button"
+                  onClick={() => requestConfirmation("pending", row)}
+                  title="Mark Leave Pending"
+                  aria-label="Mark Leave Pending"
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-orange-200 text-orange-500 transition hover:bg-orange-50 hover:text-orange-600"
                 >
-                  <CalendarDays size={14} /> Pending
+                  <CalendarDays size={15} />
                 </button>
               )}
             </div>
@@ -506,11 +585,20 @@ const LeavesPage = () => {
           leave={rejectModal.leave}
           onClose={() => setRejectModal({ open: false, leave: null })}
           onSubmit={async (reason) => {
-            await handleReject(rejectModal.leave, reason);
             setRejectModal({ open: false, leave: null });
+            requestConfirmation("reject", rejectModal.leave, reason);
           }}
         />
       )}
+
+      <ConfirmDeleteModal
+        open={confirmation.open}
+        onClose={closeConfirmation}
+        onConfirm={handleConfirmedAction}
+        title={confirmationDetails[confirmation.action]?.title}
+        message={confirmationDetails[confirmation.action]?.message}
+        confirmLabel={confirmationDetails[confirmation.action]?.label}
+      />
 
       {/* Filter Modal */}
       <FilterModal
