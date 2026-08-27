@@ -6,7 +6,13 @@ import LeaveBalance from "../models/LeaveBalance.js";
 import WebsiteContact from "../models/WebsiteContact.js";
 import TrainingEnquiry from "../models/Training.js";
 import CareerPost from "../models/CareerPost.js";
-import { updateLeaveBalanceOnLogin } from "../utils/leaveBalanceUtils.js";
+import ClientInvoice from "../models/ClientInvoice.js";
+import {
+  getTypeCode,
+  getServiceCode,
+  generateInvoiceNumber,
+} from "../helpers/clientInvoice.helper.js";
+
 import { uploadToS3, deleteS3File } from "../utils/s3Upload/s3.js";
 import CareerApplication from "../models/CareerApplication.js";
 import MailService from "../services/mailService.js";
@@ -3327,6 +3333,303 @@ export const updateCareerApplicationStatus = async (req, res) => {
     });
   }
 };
+
+export const createClientInvoiceNumber = async (req, res) => {
+  try {
+    // ------------------------------------------------------
+    // ADMIN CHECK
+    // ------------------------------------------------------
+
+    if (req.user.role !== "admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied. Admins only.",
+      });
+    }
+
+    // ------------------------------------------------------
+    // REQUEST BODY
+    // ------------------------------------------------------
+
+    const {
+      type,
+      service,
+      serial,
+      invoiceDate,
+      invoiceDueDate,
+    } = req.body;
+
+    // ------------------------------------------------------
+    // VALIDATION
+    // ------------------------------------------------------
+
+    if (!type) {
+      return res.status(400).json({
+        success: false,
+        message: "Invoice type is required.",
+      });
+    }
+
+    if (!service) {
+      return res.status(400).json({
+        success: false,
+        message: "Service is required.",
+      });
+    }
+
+    if (!serial) {
+      return res.status(400).json({
+        success: false,
+        message: "Serial is required.",
+      });
+    }
+
+    if (!invoiceDate) {
+      return res.status(400).json({
+        success: false,
+        message: "Invoice date is required.",
+      });
+    }
+
+    // ------------------------------------------------------
+    // VALIDATE SERIAL
+    // ------------------------------------------------------
+
+    const serialNumber = Number(serial);
+
+    if (
+      !Number.isInteger(serialNumber) ||
+      serialNumber < 1
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Serial must be a valid positive number.",
+      });
+    }
+
+    // ------------------------------------------------------
+    // VALIDATE DATE
+    // ------------------------------------------------------
+
+    const parsedInvoiceDate = new Date(invoiceDate);
+
+    if (Number.isNaN(parsedInvoiceDate.getTime())) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid invoice date.",
+      });
+    }
+
+    let parsedDueDate = null;
+
+    if (invoiceDueDate) {
+      parsedDueDate = new Date(invoiceDueDate);
+
+      if (Number.isNaN(parsedDueDate.getTime())) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid invoice due date.",
+        });
+      }
+    }
+
+    // ------------------------------------------------------
+    // GET CODES
+    // ------------------------------------------------------
+
+    const typeCode = getTypeCode(type);
+    const serviceCode = getServiceCode(service);
+
+    // ------------------------------------------------------
+    // GENERATE FULL INVOICE NUMBER
+    // ------------------------------------------------------
+
+    const invoiceNumber = generateInvoiceNumber({
+      type: typeCode,
+      service: serviceCode,
+      invoiceDate: parsedInvoiceDate,
+      serial: serialNumber,
+    });
+
+    // ------------------------------------------------------
+    // CHECK IF SAME INVOICE ALREADY EXISTS
+    // ------------------------------------------------------
+
+    const existingInvoice = await ClientInvoice.findOne({
+      $or: [
+        {
+          invoiceNumber,
+        },
+        {
+          type: typeCode,
+          service: serviceCode,
+          serial: String(serialNumber),
+        },
+      ],
+    }).lean();
+
+    if (existingInvoice) {
+      return res.status(409).json({
+        success: false,
+        message: "This invoice already exists.",
+        data: {
+          invoiceNumber: existingInvoice.invoiceNumber,
+        },
+      });
+    }
+
+    // ------------------------------------------------------
+    // CREATE INVOICE
+    // ------------------------------------------------------
+
+    const invoice = await ClientInvoice.create({
+      type: typeCode,
+      service: serviceCode,
+      serial: String(serialNumber),
+      invoiceNumber,
+      invoiceDate: parsedInvoiceDate,
+      invoiceDueDate: parsedDueDate,
+    });
+
+    // ------------------------------------------------------
+    // RESPONSE
+    // ------------------------------------------------------
+
+    return res.status(201).json({
+      success: true,
+      message: "Client invoice created successfully.",
+      data: {
+        id: invoice._id,
+        type: invoice.type,
+        service: invoice.service,
+        serial: invoice.serial,
+        invoiceNumber: invoice.invoiceNumber,
+        invoiceDate: invoice.invoiceDate,
+        invoiceDueDate: invoice.invoiceDueDate,
+        createdAt: invoice.createdAt,
+      },
+    });
+  } catch (err) {
+    // ------------------------------------------------------
+    // DUPLICATE KEY ERROR
+    // ------------------------------------------------------
+
+    if (err.code === 11000) {
+      return res.status(409).json({
+        success: false,
+        message: "This invoice already exists.",
+        error: "Duplicate invoice number or serial.",
+      });
+    }
+
+    console.error("Error create client invoice number:", err);
+
+    return res.status(500).json({
+      success: false,
+      message: "Server error during create client invoice number.",
+      error: err.message,
+    });
+  }
+};
+
+export const getClientInvoiceNumber = async (req, res) => {
+  try {
+    // ------------------------------------------------------
+    // ADMIN CHECK
+    // ------------------------------------------------------
+
+    if (req.user.role !== "admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied. Admins only.",
+      });
+    }
+
+    // ------------------------------------------------------
+    // QUERY PARAMS
+    // ------------------------------------------------------
+
+    const { type, service } = req.query;
+
+    if (!type || !service) {
+      return res.status(400).json({
+        success: false,
+        message: "type and service are required.",
+      });
+    }
+
+    // ------------------------------------------------------
+    // CONVERT TO CODES
+    // ------------------------------------------------------
+
+    const typeCode = getTypeCode(type);
+    const serviceCode = getServiceCode(service);
+
+    // ------------------------------------------------------
+    // FIND LATEST INVOICE FOR THIS TYPE + SERVICE
+    // ------------------------------------------------------
+
+    const latestInvoice = await ClientInvoice.findOne({
+      type: typeCode,
+      service: serviceCode,
+    })
+      .sort({
+        createdAt: -1,
+      })
+      .lean();
+
+    // ------------------------------------------------------
+    // CALCULATE NEXT SERIAL
+    // ------------------------------------------------------
+
+    let nextSerial = 1;
+
+    if (latestInvoice) {
+      const lastSerial = Number(latestInvoice.serial);
+
+      if (!Number.isNaN(lastSerial)) {
+        nextSerial = lastSerial + 1;
+      }
+    }
+
+    // ------------------------------------------------------
+    // GENERATE PREVIEW INVOICE NUMBER
+    // ------------------------------------------------------
+
+    const invoiceDate = new Date();
+
+    const invoiceNumber = generateInvoiceNumber({
+      type: typeCode,
+      service: serviceCode,
+      invoiceDate,
+      serial: nextSerial,
+    });
+
+    // ------------------------------------------------------
+    // RESPONSE
+    // ------------------------------------------------------
+
+    return res.status(200).json({
+      success: true,
+      message: "Next client invoice number generated successfully.",
+      data: {
+        type: typeCode,
+        service: serviceCode,
+        serial: String(nextSerial),
+        invoiceNumber,
+      },
+    });
+  } catch (err) {
+    console.error("Error get client invoice number:", err);
+
+    return res.status(500).json({
+      success: false,
+      message: "Server error during get client invoice number.",
+      error: err.message,
+    });
+  }
+};
+
 
 // ********************************************************WEBISTE API**********************************************************************
 

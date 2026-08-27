@@ -24,7 +24,9 @@ import {
     getOpportunitiesDetails,
     applyForCareer,
     getCareerPostById,
-    updateCareerApplicationStatus
+    updateCareerApplicationStatus,
+    getClientInvoiceNumber,
+    createClientInvoiceNumber
 } from "../controller/authController.js";
 import { protect } from "../middleware/authMiddleware.js";
 import multer from "multer";
@@ -69,6 +71,9 @@ router.get("/career-posts", protect, getAllCareerPosts);
 router.get("/website-opportunities", protect, getWebsiteOpportunities);
 router.get("/career-posts/:id", protect, getCareerPostById);
 router.put("/application-update/:id", protect, updateCareerApplicationStatus);
+
+router.post("/client-invoice", protect, createClientInvoiceNumber);
+router.get("/client-invoice/next-number", protect, getClientInvoiceNumber);
 
 // ********************************************************WEBISTE API's ROUTES**********************************************************************
 router.post("/contact-us", websiteContactUs);

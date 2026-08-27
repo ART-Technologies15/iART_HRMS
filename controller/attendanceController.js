@@ -1240,7 +1240,7 @@ export const getMonthlyAttendanceForAdmin = async (req, res) => {
       });
     }
 
-    let { month, year } = req.query;
+    let { month, year, role = "employee/hr" } = req.query;
 
     if (!month || !year) {
       return res.status(400).json({
@@ -1257,10 +1257,20 @@ export const getMonthlyAttendanceForAdmin = async (req, res) => {
     const endOfMonth = startOfMonth.clone().endOf("month");
     const totalDays = endOfMonth.date();
 
-    const users = await User.find({
+    const userQuery = {
       isActive: true,
       role: { $ne: "admin" },
-    }).lean();
+    };
+
+    if (role) {
+      if (role === "employee/hr" || role === "employee" || role === "hr") {
+        userQuery.role = { $in: ["employee", "hr"] };
+      } else if (role === "intern" || role === "trainee") {
+        userQuery.role = role;
+      }
+    }
+
+    const users = await User.find(userQuery).lean();
 
     const attendanceDocs = await Attendance.find({
       userId: { $in: users.map(u => u._id) },
@@ -1390,6 +1400,7 @@ export const getMonthlyAttendanceForAdmin = async (req, res) => {
           row.users.push({
             userId: u._id,
             name: u.name,
+            role: u.role,
             lop: extraLOP,
             leaveBalance: balance,
             punchIn: "",
@@ -1405,6 +1416,7 @@ export const getMonthlyAttendanceForAdmin = async (req, res) => {
           row.users.push({
             userId: u._id,
             name: u.name,
+            role: u.role,
             lop: extraLOP,
             leaveBalance: balance,
             punchIn: "",
@@ -1437,6 +1449,7 @@ export const getMonthlyAttendanceForAdmin = async (req, res) => {
           row.users.push({
             userId: u._id,
             name: u.name,
+            role: u.role,
             lop: extraLOP,
             leaveBalance: balance,
             punchIn: punchIn.toDate(),
@@ -1449,6 +1462,7 @@ export const getMonthlyAttendanceForAdmin = async (req, res) => {
           row.users.push({
             userId: u._id,
             name: u.name,
+            role: u.role,
             lop: extraLOP,
             leaveBalance: balance,
             punchIn: "",
@@ -2059,6 +2073,7 @@ export const getAllRegularization = async (req, res) => {
       userId,
       startDate,
       endDate,
+      month, // <-- ADD THIS
       search,
       page = 1,
       limit = 20,
@@ -2067,8 +2082,6 @@ export const getAllRegularization = async (req, res) => {
     const role = req.user.role;
     const isAdminOrHR = role === "admin" || role === "hr";
 
-    // This endpoint is for reviewers only — employees viewing their own
-    // requests should hit a separate "my regularizations" route instead.
     if (!isAdminOrHR) {
       return res.status(403).json({
         success: false,
@@ -2079,6 +2092,9 @@ export const getAllRegularization = async (req, res) => {
     const ownId = new mongoose.Types.ObjectId(req.user._id);
     const match = {};
 
+    // ---------------------------------------------------------
+    // USER FILTER
+    // ---------------------------------------------------------
     if (userId) {
       if (!mongoose.isValidObjectId(userId)) {
         return res.status(400).json({
@@ -2086,52 +2102,113 @@ export const getAllRegularization = async (req, res) => {
           message: "Invalid userId.",
         });
       }
-      // Combine the requested filter with the self-exclusion rule —
-      // if a reviewer explicitly asks for their own userId, $eq and $ne
-      // cancel each other out and correctly return nothing.
-      match.userId = { $eq: new mongoose.Types.ObjectId(userId), $ne: ownId };
+
+      match.userId = {
+        $eq: new mongoose.Types.ObjectId(userId),
+        $ne: ownId,
+      };
     } else {
-      // Never surface a reviewer's own regularization requests to them here
-      match.userId = { $ne: ownId };
+      match.userId = {
+        $ne: ownId,
+      };
     }
 
+    // ---------------------------------------------------------
+    // STATUS FILTER
+    // ---------------------------------------------------------
     if (status) {
       const allowedStatuses = ["Pending", "Approved", "Rejected"];
+
       if (!allowedStatuses.includes(status)) {
         return res.status(400).json({
           success: false,
           message: `status must be one of: ${allowedStatuses.join(", ")}`,
         });
       }
+
       match.status = status;
     }
 
+    // ---------------------------------------------------------
+    // REQUEST TYPE FILTER
+    // ---------------------------------------------------------
     if (requestType) {
       match.requestType = requestType;
     }
 
-    if (startDate || endDate) {
+    // ---------------------------------------------------------
+    // MONTH FILTER
+    // Format: YYYY-MM
+    // Example: 2026-08
+    // ---------------------------------------------------------
+    if (month) {
+      if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid month. Use YYYY-MM format, for example 2026-08.",
+        });
+      }
+
+      const [year, monthNumber] = month.split("-").map(Number);
+
+      // Start of month in IST
+      const monthStart = moment
+        .tz(
+          {
+            year,
+            month: monthNumber - 1,
+            day: 1,
+          },
+          "Asia/Kolkata"
+        )
+        .startOf("month");
+
+      // End of month in IST
+      const monthEnd = monthStart.clone().endOf("month");
+
+      match.attendanceDate = {
+        $gte: monthStart.toDate(),
+        $lte: monthEnd.toDate(),
+      };
+    }
+
+    // ---------------------------------------------------------
+    // START / END DATE FILTER
+    // ---------------------------------------------------------
+    // Only apply these when month filter is NOT being used.
+    if (!month && (startDate || endDate)) {
       match.attendanceDate = {};
+
       if (startDate) {
-        const s = moment(startDate).utcOffset("+05:30").startOf("day");
+        const s = moment
+          .tz(startDate, "Asia/Kolkata")
+          .startOf("day");
+
         if (!s.isValid()) {
           return res.status(400).json({
             success: false,
             message: "Invalid startDate.",
           });
         }
+
         match.attendanceDate.$gte = s.toDate();
       }
+
       if (endDate) {
-        const e = moment(endDate).utcOffset("+05:30").endOf("day");
+        const e = moment
+          .tz(endDate, "Asia/Kolkata")
+          .endOf("day");
+
         if (!e.isValid()) {
           return res.status(400).json({
             success: false,
             message: "Invalid endDate.",
           });
         }
+
         match.attendanceDate.$lte = e.toDate();
       }
+
       if (
         match.attendanceDate.$gte &&
         match.attendanceDate.$lte &&
@@ -2144,29 +2221,52 @@ export const getAllRegularization = async (req, res) => {
       }
     }
 
+    // ---------------------------------------------------------
+    // PAGINATION
+    // ---------------------------------------------------------
     const pageNum = Math.max(parseInt(page, 10) || 1, 1);
-    const limitNum = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100); // cap page size
+
+    const limitNum = Math.min(
+      Math.max(parseInt(limit, 10) || 20, 1),
+      100
+    );
+
     const skip = (pageNum - 1) * limitNum;
 
-    // Base pipeline: filters that don't need the joined user doc
+    // ---------------------------------------------------------
+    // AGGREGATION
+    // ---------------------------------------------------------
     const pipeline = [
-      { $match: match },
+      {
+        $match: match,
+      },
+
       {
         $lookup: {
-          from: "users", // adjust if your User collection name differs
+          from: "users",
           localField: "userId",
           foreignField: "_id",
           as: "userId",
         },
       },
-      { $unwind: { path: "$userId", preserveNullAndEmptyArrays: true } },
+
+      {
+        $unwind: {
+          path: "$userId",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
     ];
 
-    // Free-text search across employee name/email, request type, and reason.
-    // Done after $lookup so we can search the joined employee fields too —
-    // this is why we can't just use find().populate() here.
+    // ---------------------------------------------------------
+    // SEARCH
+    // ---------------------------------------------------------
     if (search && String(search).trim()) {
-      const re = new RegExp(escapeRegex(String(search).trim()), "i");
+      const re = new RegExp(
+        escapeRegex(String(search).trim()),
+        "i"
+      );
+
       pipeline.push({
         $match: {
           $or: [
@@ -2179,16 +2279,21 @@ export const getAllRegularization = async (req, res) => {
       });
     }
 
+    // ---------------------------------------------------------
+    // PROJECT
+    // ---------------------------------------------------------
     pipeline.push({
       $project: {
         attendanceId: 1,
         attendanceRecordId: 1,
+
         userId: {
           _id: "$userId._id",
           name: "$userId.name",
           email: "$userId.email",
           employeeId: "$userId.employeeId",
         },
+
         attendanceDate: 1,
         currentPunchIn: 1,
         currentPunchOut: 1,
@@ -2205,14 +2310,30 @@ export const getAllRegularization = async (req, res) => {
       },
     });
 
+    // ---------------------------------------------------------
+    // FACET
+    // ---------------------------------------------------------
     pipeline.push({
       $facet: {
         data: [
-          { $sort: { createdAt: -1 } },
-          { $skip: skip },
-          { $limit: limitNum },
+          {
+            $sort: {
+              createdAt: -1,
+            },
+          },
+          {
+            $skip: skip,
+          },
+          {
+            $limit: limitNum,
+          },
         ],
-        totalCount: [{ $count: "count" }],
+
+        totalCount: [
+          {
+            $count: "count",
+          },
+        ],
       },
     });
 
@@ -2224,15 +2345,20 @@ export const getAllRegularization = async (req, res) => {
     return res.status(200).json({
       success: true,
       data,
+
       pagination: {
         total,
         page: pageNum,
         limit: limitNum,
-        totalPages: Math.max(Math.ceil(total / limitNum), 1),
+        totalPages: Math.max(
+          Math.ceil(total / limitNum),
+          1
+        ),
       },
     });
   } catch (err) {
     console.error("Get All Regularization Error:", err);
+
     return res.status(500).json({
       success: false,
       message: "Server error while fetching regularization requests.",
