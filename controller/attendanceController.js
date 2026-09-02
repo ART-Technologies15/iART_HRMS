@@ -1328,7 +1328,7 @@ export const getMonthlyAttendanceForAdmin = async (req, res) => {
       ) {
         return {
           balance: history
-            ? history.closingBalance
+            ? history.openingBalance
             : "-",
           extraLOP: history
             ? history.extraLOP
@@ -1339,7 +1339,7 @@ export const getMonthlyAttendanceForAdmin = async (req, res) => {
       // ---------------- OLDER MONTHS ----------------
       if (history) {
         return {
-          balance: history.closingBalance,
+          balance: history.openingBalance,
           extraLOP: history.extraLOP,
         };
       }
