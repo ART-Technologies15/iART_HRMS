@@ -26,6 +26,7 @@ import { ClientInvoice } from "./pages/ClientInvoice";
 import WebsiteContactUs from "./pages/WebsiteContactUs";
 import { CareerAndTraining } from "./pages/CareerAndTraining";
 import { JobDetails } from "./pages/JobDetails";
+import { AdminHrLetters } from "./pages/AdminHrLetters";
 
 const App = () => {
   return (
@@ -180,6 +181,14 @@ const App = () => {
             element={
               <AdminHrRoute>
                 <JobDetails />
+              </AdminHrRoute>
+            }
+          />
+          <Route
+            path="/create-letters"
+            element={
+              <AdminHrRoute>
+                <AdminHrLetters />
               </AdminHrRoute>
             }
           />

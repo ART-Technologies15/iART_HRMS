@@ -334,39 +334,39 @@ const AdminMonthlyAttendance = () => {
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex-1 min-h-0">
           <div className="overflow-auto h-full">
             <table className="w-full text-sm" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
-            <thead className="bg-slate-50 border-b border-slate-200">
-  <tr>
-    <th
-      className="py-2.5 px-3 text-left font-semibold text-slate-600 whitespace-nowrap sticky top-0 left-0 bg-slate-50 z-40"
-      style={{ minWidth: "120px" }}
-    >
-      Date
-    </th>
+              <thead className="bg-slate-50 border-b border-slate-200">
+                <tr>
+                  <th
+                    className="py-2.5 px-3 text-left font-semibold text-slate-600 whitespace-nowrap sticky top-0 left-0 bg-slate-50 z-40"
+                    style={{ minWidth: "120px" }}
+                  >
+                    Date
+                  </th>
 
-    {usersList.map((user) => (
-      <th
-        key={user.id}
-        className="py-2.5 px-3 text-center sticky top-0 bg-slate-50 z-20"
-        style={{ minWidth: "130px" }}
-      >
-        <div className="flex flex-col items-center justify-center gap-1">
-          {/* User Name */}
-          <span
-            className="font-semibold text-slate-700 text-sm max-w-[120px] truncate"
-            title={user.name}
-          >
-            {user.name}
-          </span>
+                  {usersList.map((user) => (
+                    <th
+                      key={user.id}
+                      className="py-2.5 px-3 text-center sticky top-0 bg-slate-50 z-20"
+                      style={{ minWidth: "130px" }}
+                    >
+                      <div className="flex flex-col items-center justify-center gap-1">
+                        {/* User Name */}
+                        <span
+                          className="font-semibold text-slate-700 text-sm max-w-[120px] truncate"
+                          title={user.name}
+                        >
+                          {user.name}
+                        </span>
 
-          {/* Role */}
-          <span className="text-[10px] font-medium uppercase tracking-wide text-slate-500 bg-slate-200 px-2 py-0.5 rounded-full">
-            {user.role}
-          </span>
-        </div>
-      </th>
-    ))}
-  </tr>
-</thead>
+                        {/* Role */}
+                        <span className="text-[10px] font-medium uppercase tracking-wide text-slate-500 bg-slate-200 px-2 py-0.5 rounded-full">
+                          {user.role}
+                        </span>
+                      </div>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
               <tbody>
                 {rows.map((row, rowIdx) => (
                   <tr

@@ -8,7 +8,6 @@ import {
   CalendarCheck,
   UserCog,
   LogOut,
-  Calendar,
   Logs,
   CalendarDays,
   Megaphone,
@@ -26,6 +25,8 @@ import {
   Building2,
   MessageSquare,
   GraduationCap,
+  FileCheck2,
+  Calendar,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
@@ -65,9 +66,12 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, user }) => {
   const [openGroups, setOpenGroups] = useState({
     attendance: true,
     people: true,
+    mywork: true,
     workplace: true,
+    communication: true,
     business: true,
     career: true,
+    letters: true,
   });
 
   const toggleGroup = (group) => {
@@ -88,18 +92,16 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, user }) => {
       rounded-xl
       text-sm font-medium
       transition-all duration-200
-      ${
-        isActive
-          ? "bg-[#4EA3F7] text-white shadow-sm"
-          : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-      }
+      ${isActive
+      ? "bg-[#4EA3F7] text-white shadow-sm"
+      : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+    }
     `;
 
   const iconClasses = ({ isActive }) =>
-    `w-[18px] h-[18px] shrink-0 ${
-      isActive
-        ? "text-white"
-        : "text-slate-400 group-hover:text-slate-700"
+    `w-[18px] h-[18px] shrink-0 ${isActive
+      ? "text-white"
+      : "text-slate-400 group-hover:text-slate-700"
     }`;
 
   // =========================================================
@@ -147,9 +149,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, user }) => {
         flex h-screen w-60 flex-col
         bg-white
         border-r border-slate-200
-
         transition-transform duration-300
-
         ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
         lg:static lg:translate-x-0
       `}
@@ -203,7 +203,6 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, user }) => {
           overflow-x-hidden
           overscroll-contain
           py-3
-
           scrollbar-thin
           scrollbar-thumb-slate-200
           scrollbar-track-transparent
@@ -335,6 +334,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, user }) => {
 
             {openGroups.people && (
               <div>
+                {/* Users */}
                 <NavLink
                   to="/users"
                   onClick={() => setSidebarOpen(false)}
@@ -348,6 +348,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, user }) => {
                   )}
                 </NavLink>
 
+                {/* Documents KYC */}
                 <NavLink
                   to="/document-kyc"
                   onClick={() => setSidebarOpen(false)}
@@ -363,6 +364,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, user }) => {
                   )}
                 </NavLink>
 
+                {/* Assets */}
                 <NavLink
                   to="/assets"
                   onClick={() => setSidebarOpen(false)}
@@ -377,12 +379,61 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, user }) => {
                     </>
                   )}
                 </NavLink>
+
+                {/* =================================================
+                    HR LETTERS
+                ================================================== */}
+
+                <GroupHeader
+                  title="HR Letters"
+                  icon={FileText}
+                  group="letters"
+                />
+
+                {openGroups.letters && (
+                  <div>
+                    {/* Create Letter */}
+                    <NavLink
+                      to="/create-letters"
+                      onClick={() => setSidebarOpen(false)}
+                      className={linkClasses}
+                    >
+                      {({ isActive }) => (
+                        <>
+                          <FilePenLine
+                            className={iconClasses({ isActive })}
+                          />
+                          <span>Create Letter</span>
+                        </>
+                      )}
+                    </NavLink>
+
+                    {/* Letter History */}
+                    <NavLink
+                      to="/hr-letters/history"
+                      onClick={() => setSidebarOpen(false)}
+                      className={linkClasses}
+                    >
+                      {({ isActive }) => (
+                        <>
+                          <FileCheck2
+                            className={iconClasses({ isActive })}
+                          />
+                          <span>Letter History</span>
+                        </>
+                      )}
+                    </NavLink>
+                  </div>
+                )}
               </div>
             )}
           </>
         )}
 
-        {/* Employee My Assets */}
+        {/* ===================================================
+            MY WORK
+        ==================================================== */}
+
         {!isAdmin && (
           <>
             <GroupHeader
@@ -392,22 +443,55 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, user }) => {
             />
 
             {openGroups.mywork && (
-              <NavLink
-                to="/my-assets"
-                onClick={() => setSidebarOpen(false)}
-                className={linkClasses}
-              >
-                {({ isActive }) => (
-                  <>
-                    <ChartCandlestick
-                      className={iconClasses({ isActive })}
-                    />
-                    <span>My Assets</span>
-                  </>
-                )}
-              </NavLink>
+              <div>
+                {/* My Assets */}
+                <NavLink
+                  to="/my-assets"
+                  onClick={() => setSidebarOpen(false)}
+                  className={linkClasses}
+                >
+                  {({ isActive }) => (
+                    <>
+                      <ChartCandlestick
+                        className={iconClasses({ isActive })}
+                      />
+                      <span>My Assets</span>
+                    </>
+                  )}
+                </NavLink>
+
+                {/* My Letters */}
+                <NavLink
+                  to="/my-letters"
+                  onClick={() => setSidebarOpen(false)}
+                  className={linkClasses}
+                >
+                  {({ isActive }) => (
+                    <>
+                      <FileText
+                        className={iconClasses({ isActive })}
+                      />
+                      <span>My Letters</span>
+                    </>
+                  )}
+                </NavLink>
+              </div>
             )}
           </>
+        )}
+
+        {/* ===================================================
+            HR MY LETTERS
+            HR is not admin, so HR should also see own letters.
+        ==================================================== */}
+
+        {isHr && (
+          <div className="hidden">
+            {/* 
+              No separate visible item here because HR already
+              gets My Letters through the My Work section.
+            */}
+          </div>
         )}
 
         {/* ===================================================
@@ -422,6 +506,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, user }) => {
 
         {openGroups.workplace && (
           <div>
+            {/* Phone Book */}
             <NavLink
               to="/phone-book"
               onClick={() => setSidebarOpen(false)}
@@ -435,6 +520,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, user }) => {
               )}
             </NavLink>
 
+            {/* Calendar */}
             <NavLink
               to="/calendar"
               onClick={() => setSidebarOpen(false)}
@@ -448,6 +534,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, user }) => {
               )}
             </NavLink>
 
+            {/* Leave */}
             <NavLink
               to="/leave"
               onClick={() => setSidebarOpen(false)}
@@ -510,6 +597,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, user }) => {
 
             {openGroups.business && (
               <div>
+                {/* Client Invoice */}
                 <NavLink
                   to="/Invoice"
                   onClick={() => setSidebarOpen(false)}
@@ -525,6 +613,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, user }) => {
                   )}
                 </NavLink>
 
+                {/* Website Contact Us */}
                 <NavLink
                   to="/website-contact-us"
                   onClick={() => setSidebarOpen(false)}
