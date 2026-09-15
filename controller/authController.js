@@ -17,6 +17,7 @@ import { uploadToS3, deleteS3File } from "../utils/s3Upload/s3.js";
 import CareerApplication from "../models/CareerApplication.js";
 import MailService from "../services/mailService.js";
 import path from "path";
+import { getLetterTitle } from "../helpers/userDocument.helper.js";
 
 export const register = async (req, res) => {
   try {
@@ -3626,6 +3627,197 @@ export const getClientInvoiceNumber = async (req, res) => {
       success: false,
       message: "Server error during get client invoice number.",
       error: err.message,
+    });
+  }
+};
+
+export const uploadUserLetter = async (req, res) => {
+  try {
+    const { userId, type } = req.body;
+
+    // =====================================================
+    // VALIDATION
+    // =====================================================
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: "userId is required.",
+      });
+    }
+
+    if (!type) {
+      return res.status(400).json({
+        success: false,
+        message: "Letter type is required.",
+      });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: "Letter file is required.",
+      });
+    }
+
+    // =====================================================
+    // FIND USER
+    // =====================================================
+
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found.",
+      });
+    }
+
+    const letterType = type.toLowerCase().trim();
+
+    // =====================================================
+    // UPLOAD NEW LETTER TO S3
+    // =====================================================
+
+    const uploadedFile = await uploadToS3(req.file);
+
+    const fileUrl =
+      uploadedFile?.url ||
+      uploadedFile?.Location ||
+      uploadedFile?.key;
+
+    if (!fileUrl) {
+      return res.status(500).json({
+        success: false,
+        message: "Letter uploaded but S3 URL could not be obtained.",
+      });
+    }
+
+    // =====================================================
+    // CHECK EXISTING LETTER
+    // =====================================================
+
+    const existingLetterIndex = user.letters.findIndex(
+      (letter) =>
+        letter.type === letterType &&
+        letter.status !== "revoked"
+    );
+
+    // =====================================================
+    // UPDATE EXISTING LETTER
+    // =====================================================
+
+    if (existingLetterIndex !== -1) {
+      const existingLetter =
+        user.letters[existingLetterIndex];
+
+      // Delete old S3 file
+      if (existingLetter.file) {
+        try {
+          await deleteS3File(existingLetter.file);
+        } catch (deleteError) {
+          console.error(
+            "Failed to delete old letter from S3:",
+            deleteError
+          );
+        }
+      }
+
+      existingLetter.file = fileUrl;
+      existingLetter.updatedAt = new Date();
+      existingLetter.updatedBy = req.user?._id || null;
+
+      await user.save();
+
+      return res.status(200).json({
+        success: true,
+        message: "User letter updated successfully.",
+        letter: existingLetter,
+      });
+    }
+
+    // =====================================================
+    // CREATE NEW LETTER
+    // =====================================================
+
+    user.letters.push({
+      type: letterType,
+      title: getLetterTitle(letterType),
+      file: fileUrl,
+      status: "active",
+      assignedAt: new Date(),
+      assignedBy: req.user?._id || null,
+      updatedAt: new Date(),
+      updatedBy: req.user?._id || null,
+    });
+
+    await user.save();
+
+    const newLetter =
+      user.letters[user.letters.length - 1];
+
+    return res.status(201).json({
+      success: true,
+      message: "User letter uploaded successfully.",
+      letter: newLetter,
+    });
+  } catch (err) {
+    console.error(
+      "Error uploading user letter:",
+      err
+    );
+
+    return res.status(500).json({
+      success: false,
+      message: "Server error during user letter upload.",
+      error: err.message,
+    });
+  }
+};
+
+export const getLetterById = async (req, res) => {
+  try {
+    // Priority:
+    // 1. userId from body
+    // 2. logged-in user's _id
+    const userId = req.body?.userId || req.user?._id;
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: "User ID is required.",
+      });
+    }
+
+    const user = await User.findById(userId)
+      .select("_id employeeId name email letters");
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found.",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Letters fetched successfully.",
+      data: {
+        userId: user._id,
+        employeeId: user.employeeId,
+        name: user.name,
+        email: user.email,
+        letters: user.letters || [],
+      },
+    });
+
+  } catch (error) {
+    console.error("Error fetching user letters:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Server error while fetching user letters.",
+      error: error.message,
     });
   }
 };

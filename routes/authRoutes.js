@@ -26,7 +26,9 @@ import {
     getCareerPostById,
     updateCareerApplicationStatus,
     getClientInvoiceNumber,
-    createClientInvoiceNumber
+    createClientInvoiceNumber,
+    uploadUserLetter,
+    getLetterById
 } from "../controller/authController.js";
 import { protect } from "../middleware/authMiddleware.js";
 import multer from "multer";
@@ -43,6 +45,7 @@ const uploadFields = upload.fields([
     { name: "passbookFile", maxCount: 1 },
     { name: "profilePhoto", maxCount: 1 },
     { name: "resume", maxCount: 1 },
+    { name: "file", maxCount: 1 },
 ]);
 
 const uploadResume = upload.fields([
@@ -74,6 +77,9 @@ router.put("/application-update/:id", protect, updateCareerApplicationStatus);
 
 router.post("/client-invoice", protect, createClientInvoiceNumber);
 router.get("/client-invoice/next-number", protect, getClientInvoiceNumber);
+
+router.post("/assign-letter", protect, uploadFields, uploadUserLetter);
+router.get("/assign-letter", protect, uploadFields, getLetterById);
 
 // ********************************************************WEBISTE API's ROUTES**********************************************************************
 router.post("/contact-us", websiteContactUs);

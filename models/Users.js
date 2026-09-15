@@ -68,6 +68,56 @@ const userSchema = new mongoose.Schema(
 
     designation: String,
 
+    letters: [
+      {
+        type: {
+          type: String,
+          required: true,
+          lowercase: true,
+          trim: true,
+        },
+
+        title: {
+          type: String,
+          trim: true,
+          default: null,
+        },
+
+        file: {
+          type: String,
+          required: true,
+        },
+
+        status: {
+          type: String,
+          enum: ["active", "revoked"],
+          default: "active",
+        },
+
+        assignedAt: {
+          type: Date,
+          default: Date.now,
+        },
+
+        assignedBy: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+          default: null,
+        },
+
+        updatedAt: {
+          type: Date,
+          default: Date.now,
+        },
+
+        updatedBy: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+          default: null,
+        },
+      },
+    ],
+
     leaveInfo: {
       balance: { type: Number, default: 0 },
       extraLOP: { type: Number, default: 0 },
