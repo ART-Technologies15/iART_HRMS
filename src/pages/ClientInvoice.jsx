@@ -43,11 +43,42 @@ const BORDER = '#D7DEE8'
 
 const uid = () => Math.random().toString(36).slice(2, 9)
 
-const money = (n) =>
-    `₹${(Number(n) || 0).toLocaleString('en-IN', {
+// ---- currency config ----
+const CURRENCIES = {
+    INR: { code: 'INR', symbol: '₹', locale: 'en-IN', name: 'Rupees', sub: 'Paise' },
+    USD: { code: 'USD', symbol: '$', locale: 'en-US', name: 'Dollars', sub: 'Cents' },
+    EUR: { code: 'EUR', symbol: '€', locale: 'de-DE', name: 'Euros', sub: 'Cents' },
+}
+
+const money = (n, currency = 'INR') => {
+    const cfg = CURRENCIES[currency] || CURRENCIES.INR
+    return `${cfg.symbol}${(Number(n) || 0).toLocaleString(cfg.locale, {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
     })}`
+}
+
+// ---- Western numbering (thousand / million / billion) for USD & EUR ----
+const integerToWesternWords = (num) => {
+    num = Math.floor(Math.abs(Number(num)) || 0)
+    if (num === 0) return 'Zero'
+
+    const billion = Math.floor(num / 1000000000)
+    num %= 1000000000
+    const million = Math.floor(num / 1000000)
+    num %= 1000000
+    const thousand = Math.floor(num / 1000)
+    num %= 1000
+    const hundred = num
+
+    const parts = []
+    if (billion) parts.push(`${threeDigitWords(billion)} Billion`)
+    if (million) parts.push(`${threeDigitWords(million)} Million`)
+    if (thousand) parts.push(`${threeDigitWords(thousand)} Thousand`)
+    if (hundred) parts.push(threeDigitWords(hundred))
+
+    return parts.join(' ')
+}
 
 const formatDate = (date) => {
     if (!date) return "";
@@ -107,13 +138,16 @@ const integerToIndianWords = (num) => {
 
 // e.g. amountInWords(3555548.94) -> "Rupees Thirty-Five Lakh Fifty-Five Thousand Five
 // Hundred Forty-Eight and Ninety-Four Paise Only"
-const amountInWords = (amount) => {
+const amountInWords = (amount, currency = 'INR') => {
+    const cfg = CURRENCIES[currency] || CURRENCIES.INR
     const value = Number(amount) || 0
-    const rupees = Math.floor(value)
-    const paise = Math.round((value - rupees) * 100)
+    const whole = Math.floor(value)
+    const fraction = Math.round((value - whole) * 100)
 
-    let words = `${integerToIndianWords(rupees)}`
-    if (paise > 0) words += ` and ${integerToIndianWords(paise)} Paise`
+    const toWords = currency === 'INR' ? integerToIndianWords : integerToWesternWords
+
+    let words = `${toWords(whole)}`
+    if (fraction > 0) words += ` and ${toWords(fraction)} ${cfg.sub}`
     return `${words} Only`
 }
 
@@ -184,6 +218,8 @@ const useContainerWidth = () => {
 // ---- main component ----------------------------------------------------
 
 export const ClientInvoice = () => {
+    const [currency, setCurrency] = useState('INR')
+
     const [company, setCompany] = useState({
         name: 'iART Technologies Pvt. Ltd.',
         // address:
@@ -840,6 +876,21 @@ ${clone.outerHTML}
                                 />
                             </div>
 
+                            <label>
+                                <span className="block text-xs font-medium text-gray-500 mb-1">
+                                    Currency
+                                </span>
+                                <select
+                                    value={currency}
+                                    onChange={(e) => setCurrency(e.target.value)}
+                                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-cyan-600/40 focus:border-cyan-600"
+                                >
+                                    <option value="INR">₹ INR - Indian Rupee</option>
+                                    <option value="USD">$ USD - US Dollar</option>
+                                    <option value="EUR">€ EUR - Euro</option>
+                                </select>
+                            </label>
+
                             {/* Additional freeform rows shown in the "Invoice Details" box on the
                                 preview — add/remove works the same way as the Items section below. */}
                             <div className="pt-2 border-t border-gray-100 space-y-2">
@@ -1146,6 +1197,7 @@ ${clone.outerHTML}
                                         bank={bank}
                                         signature={signature}
                                         extraDetails={extraDetails}
+                                        currency={currency}
                                     />
                                 </div>
                             </div>
@@ -1184,6 +1236,7 @@ const InvoicePage = ({
     bank,
     signature,
     extraDetails,
+    currency,
 }) => {
     const startNumber = pageIndex * ITEMS_PER_PAGE
 
@@ -1359,9 +1412,9 @@ const InvoicePage = ({
                             <td style={tdStyle('left', INK)}>{it.description || '—'}</td>
                             <td style={tdStyle('center', INK)}>{Number(it.hsn) || 998314}</td>
                             <td style={tdStyle('center', INK)}>{Number(it.qty) || 0}</td>
-                            <td style={tdStyle('center', INK)}>{money(it.rate)}</td>
+                            <td style={tdStyle('center', INK)}>{money(it.rate, currency)}</td>
                             <td style={{ ...tdStyle('center', INK), fontWeight: 600 }}>
-                                {money((Number(it.qty) || 0) * (Number(it.rate) || 0))}
+                                {money((Number(it.qty) || 0) * (Number(it.rate) || 0), currency)}
                             </td>
                         </tr>
                     ))}
@@ -1383,12 +1436,12 @@ const InvoicePage = ({
                             Thank you for your business!
                         </p>
                         <div style={{ width: 260 }}>
-                            <TotalRow label="Subtotal" value={money(subtotal)} />
+                            <TotalRow label="Subtotal" value={money(subtotal, currency)} />
                             {Number(discount) > 0 && (
-                                <TotalRow label={`Discount (${discount}%)`} value={`-${money(discountAmount)}`} />
+                                <TotalRow label={`Discount (${discount}%)`} value={`-${money(discountAmount, currency)}`} />
                             )}
                             {taxLines.map((t) => (
-                                <TotalRow key={t.id} label={`${t.label || 'Tax'} (${t.rate}%)`} value={money(t.amount)} />
+                                <TotalRow key={t.id} label={`${t.label || 'Tax'} (${t.rate}%)`} value={money(t.amount, currency)} />
                             ))}
                             <div
                                 style={{
@@ -1411,7 +1464,7 @@ const InvoicePage = ({
                                         borderRadius: 3,
                                     }}
                                 >
-                                    {money(grandTotal)}
+                                    {money(grandTotal, currency)}
                                 </span>
                             </div>
                         </div>
@@ -1444,7 +1497,7 @@ const InvoicePage = ({
                         </span>
                         <span style={{ width: 1, alignSelf: 'stretch', backgroundColor: '#AFC6EE' }} />
                         <span style={{ fontSize: 10.5, color: INK, fontWeight: 600, lineHeight: 1.5 }}>
-                            {amountInWords(grandTotal)}
+                            {amountInWords(grandTotal, currency)}
                         </span>
                     </div>
                 </>

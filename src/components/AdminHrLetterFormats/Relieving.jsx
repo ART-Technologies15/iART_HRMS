@@ -360,7 +360,7 @@ export const Relieving = () => {
             if (selectedUser?._id) {
                 const assignFormData = new FormData();
                 assignFormData.append("userId", selectedUser._id);
-                assignFormData.append("type", "Relieving");
+                assignFormData.append("type", "relieving");
                 assignFormData.append("file", pdfFile);
 
                 const response = await assignLetter(assignFormData);

@@ -113,6 +113,11 @@ export const createClientInvoiceNumber = async (data) => {
 };
 
 export const assignLetter = async (data) => {
-  const res = await axiosInstance.post("/auth/client-invoice", data);
+  const res = await axiosInstance.post("/auth/assign-letter", data);
+  return res.data;
+};
+
+export const getAssignLetter = async (data) => {
+  const res = await axiosInstance.get("/auth/assign-letter", data);
   return res.data;
 };

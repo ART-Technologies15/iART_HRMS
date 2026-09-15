@@ -524,7 +524,7 @@ export const Experience = () => {
 
                 assignFormData.append(
                     "type",
-                    "Experience"
+                    "experience"
                 );
 
                 assignFormData.append(

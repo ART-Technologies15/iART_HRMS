@@ -325,7 +325,7 @@ export const Termination = () => {
                 const assignFormData = new FormData();
 
                 assignFormData.append("userId", selectedUser._id);
-                assignFormData.append("type", "Termination");
+                assignFormData.append("type", "termination");
                 assignFormData.append("file", pdfFile);
 
                 const response = await assignLetter(assignFormData);

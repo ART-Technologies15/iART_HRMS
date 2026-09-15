@@ -8,6 +8,7 @@ import {
   CalendarDays,
   Package,
   Trash2,
+  FileText
 } from "lucide-react";
 import CustomTable from "../components/CustomTable";
 import UserDetailsModal from "../components/UserDetailsModal";
@@ -322,6 +323,18 @@ const AdminUsersPage = () => {
             className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-gray-200 text-gray-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600"
           >
             <Package size={15} />
+          </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate("/user-attendance", { state: { user: row } });
+            }}
+            title="Documents"
+            aria-label="Documents"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-gray-200 text-gray-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600"
+          >
+            <FileText size={15} />
           </button>
           {
             user?.role === "admin" && (
