@@ -241,9 +241,12 @@ export const ClientInvoice = () => {
         email: '',
         gstin: '',
     })
+
     const [meta, setMeta] = useState({
         invoiceType: "INT",
-        serviceType: "CS",
+        serviceType: "",
+        includeMonthYear: false,
+        includeSerial: true,
         serial: "",
         date: new Date().toISOString().slice(0, 10),
         dueDate: "",
@@ -289,35 +292,63 @@ export const ClientInvoice = () => {
     const scale = previewContainerWidth > 0 ? Math.min(1, previewContainerWidth / A4_WIDTH) : 1
 
     // ---- generate invoice number ----
-    const generateInvoiceNumber = (
+    const generateInvoiceNumber = ({
         invoiceType,
         serviceType,
         date,
-        serial
-    ) => {
-        const invoiceDate = new Date(date);
+        serial,
+        includeMonthYear,
+        includeSerial,
+    }) => {
+        const parts = ["IART", invoiceType];
 
-        const month = String(invoiceDate.getMonth() + 1).padStart(2, "0");
-        const year = String(invoiceDate.getFullYear()).slice(-2);
+        if (serviceType) {
+            parts.push(serviceType);
+        }
 
-        return `IART-${invoiceType}-${serviceType}-${month}${year}-${serial}`;
+        if (includeMonthYear && date) {
+            const invoiceDate = new Date(`${date}T00:00:00`);
+            const month = String(invoiceDate.getMonth() + 1).padStart(2, "0");
+            const year = String(invoiceDate.getFullYear()).slice(-2);
+
+            parts.push(`${month}${year}`);
+        }
+
+        if (includeSerial && serial) {
+            parts.push(serial);
+        }
+
+        return parts.join("-");
     };
 
-    const invoiceNumber = useMemo(() => {
-        return generateInvoiceNumber(
+    const invoiceNumber = useMemo(
+        () =>
+            generateInvoiceNumber({
+                invoiceType: meta.invoiceType,
+                serviceType: meta.serviceType,
+                date: meta.date,
+                serial: meta.serial,
+                includeMonthYear: meta.includeMonthYear,
+                includeSerial: meta.includeSerial,
+            }),
+        [
             meta.invoiceType,
             meta.serviceType,
             meta.date,
-            meta.serial
-        );
-    }, [
-        meta.invoiceType,
-        meta.serviceType,
-        meta.date,
-        meta.serial,
-    ]);
+            meta.serial,
+            meta.includeMonthYear,
+            meta.includeSerial,
+        ],
+    );
 
     const handleFetchInvoiceNumber = async () => {
+        if (!meta.includeSerial) return;
+
+        if (!meta.serviceType) {
+            alert("Please select a service before fetching a serial.");
+            return;
+        }
+
         setFetchingInvoiceNumber(true);
 
         try {
@@ -325,17 +356,26 @@ export const ClientInvoice = () => {
                 type: meta.invoiceType,
                 service: meta.serviceType,
             });
+
             const nextSerial = response?.data?.serial;
 
-            if (!nextSerial) {
+            if (nextSerial === undefined || nextSerial === null || nextSerial === "") {
                 throw new Error("The server did not return a serial number.");
             }
 
-            setMeta((prev) => ({ ...prev, serial: String(nextSerial) }));
+            setMeta((prev) => ({
+                ...prev,
+                serial: String(nextSerial),
+            }));
+
             setInvoiceCreated(false);
         } catch (err) {
             console.error("Failed to fetch next client invoice number:", err);
-            alert(err?.response?.data?.message || err.message || "Could not fetch the next invoice number.");
+            alert(
+                err?.response?.data?.message ||
+                err.message ||
+                "Could not fetch the next invoice number.",
+            );
         } finally {
             setFetchingInvoiceNumber(false);
         }
@@ -406,62 +446,98 @@ export const ClientInvoice = () => {
     }, [items])
 
     const handleGeneratePDF = async () => {
-        if (!previewRef.current) return
-        setGenerating(true)
+        if (!previewRef.current) return;
+
+        setGenerating(true);
+
         try {
-            if (!meta.serial) {
-                throw new Error("Please fetch the next invoice number before generating the PDF.");
-            }
-
-            if (!invoiceCreated) {
-                const response = await createClientInvoiceNumber({
-                    type: meta.invoiceType,
-                    service: meta.serviceType,
-                    serial: meta.serial,
-                    invoiceDate: meta.date,
-                    invoiceDueDate: meta.dueDate || null,
-                });
-
-                if (!response?.success) {
-                    throw new Error(response?.message || "Could not create the client invoice.");
+            if (meta.includeSerial) {
+                if (!meta.serial.trim()) {
+                    throw new Error(
+                        "Please enter a serial number or fetch the next serial."
+                    );
                 }
 
-                setInvoiceCreated(true);
+                // Create the invoice record only when a service is selected.
+                // Manual serials can be used without selecting a service.
+                if (meta.serviceType && !invoiceCreated) {
+                    const response = await createClientInvoiceNumber({
+                        type: meta.invoiceType,
+                        service: meta.serviceType,
+                        serial: meta.serial.trim(),
+                        invoiceDate: meta.date,
+                        invoiceDueDate: meta.dueDate || null,
+                    });
+
+                    if (!response?.success) {
+                        throw new Error(
+                            response?.message ||
+                            "Could not create the client invoice."
+                        );
+                    }
+
+                    setInvoiceCreated(true);
+                }
             }
 
-            // previewRef only points at the FIRST page's true-size wrapper. Query the
-            // whole preview container so every page gets captured, not just page one.
-            const container = previewRef.current.closest('[data-invoice-pages]') || previewRef.current.parentElement.parentElement
-            const pageNodes = container.querySelectorAll('.invoice-page')
-            const pdf = new jsPDF({ unit: 'px', format: [A4_WIDTH, A4_HEIGHT], orientation: 'portrait' })
+            const container =
+                previewRef.current.closest("[data-invoice-pages]") ||
+                previewRef.current.parentElement.parentElement;
+
+            const pageNodes = container.querySelectorAll(".invoice-page");
+
+            if (!pageNodes.length) {
+                throw new Error("No invoice pages were found to generate.");
+            }
+
+            const pdf = new jsPDF({
+                unit: "px",
+                format: [A4_WIDTH, A4_HEIGHT],
+                orientation: "portrait",
+            });
 
             for (let i = 0; i < pageNodes.length; i++) {
-                // Capture at true A4 size regardless of on-screen scale, so the PDF is always full quality.
                 const canvas = await html2canvas(pageNodes[i], {
                     scale: 2,
                     useCORS: true,
-                    backgroundColor: '#ffffff',
+                    backgroundColor: "#ffffff",
                     scrollX: 0,
                     scrollY: 0,
                     width: A4_WIDTH,
                     height: A4_HEIGHT,
                     windowWidth: A4_WIDTH,
                     windowHeight: A4_HEIGHT,
-                })
-                const imgData = canvas.toDataURL('image/png')
-                if (i > 0) pdf.addPage([A4_WIDTH, A4_HEIGHT], 'portrait')
-                pdf.addImage(imgData, 'PNG', 0, 0, A4_WIDTH, A4_HEIGHT)
+                });
+
+                const imgData = canvas.toDataURL("image/png");
+
+                if (i > 0) {
+                    pdf.addPage([A4_WIDTH, A4_HEIGHT], "portrait");
+                }
+
+                pdf.addImage(
+                    imgData,
+                    "PNG",
+                    0,
+                    0,
+                    A4_WIDTH,
+                    A4_HEIGHT
+                );
             }
 
-            pdf.save(`Invoice-${invoiceNumber}.pdf`)
+            pdf.save(`Invoice-${invoiceNumber}.pdf`);
         } catch (err) {
-            console.error('PDF generation failed:', err)
-            alert('Could not generate the PDF. Please check the console for details and try again.')
-        } finally {
-            setGenerating(false)
-        }
-    }
+            console.error("PDF generation failed:", err);
 
+            alert(
+                err?.response?.data?.message ||
+                err.message ||
+                "Could not generate the PDF. Please try again."
+            );
+        } finally {
+            setGenerating(false);
+        }
+    };
 
     const handleGenerateWord = () => {
         if (!previewRef.current) return;
@@ -654,6 +730,64 @@ ${clone.outerHTML}
                     <Section title="Invoice details">
                         <div className="grid grid-cols-1 sm:grid-cols-1 gap-3">
 
+                            {/* Optional invoice number segments */}
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                {/* Month / Year option */}
+                                <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-gray-200 p-3">
+                                    <input
+                                        type="checkbox"
+                                        checked={meta.includeMonthYear}
+                                        onChange={(e) => {
+                                            setMeta((prev) => ({
+                                                ...prev,
+                                                includeMonthYear: e.target.checked,
+                                            }));
+
+                                            setInvoiceCreated(false);
+                                        }}
+                                        className="mt-0.5 h-4 w-4 accent-cyan-600"
+                                    />
+
+                                    <span>
+                                        <span className="block text-sm font-medium text-gray-800">
+                                            Include Month/Year
+                                        </span>
+                                        <span className="mt-0.5 block text-xs text-gray-500">
+                                            Adds the date segment, e.g. 1026
+                                        </span>
+                                    </span>
+                                </label>
+
+                                {/* Serial option */}
+                                <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-gray-200 p-3">
+                                    <input
+                                        type="checkbox"
+                                        checked={meta.includeSerial}
+                                        onChange={(e) => {
+                                            const includeSerial = e.target.checked;
+
+                                            setMeta((prev) => ({
+                                                ...prev,
+                                                includeSerial,
+                                                serial: includeSerial ? prev.serial : "",
+                                            }));
+
+                                            setInvoiceCreated(false);
+                                        }}
+                                        className="mt-0.5 h-4 w-4 accent-cyan-600"
+                                    />
+
+                                    <span>
+                                        <span className="block text-sm font-medium text-gray-800">
+                                            Include Serial
+                                        </span>
+                                        <span className="mt-0.5 block text-xs text-gray-500">
+                                            Adds the invoice's serial number
+                                        </span>
+                                    </span>
+                                </label>
+                            </div>
+
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                 {/* Invoice Type */}
                                 <label>
@@ -687,8 +821,8 @@ ${clone.outerHTML}
                                 </label>
 
                                 {/* Service Type */}
-                                <label>
-                                    <span className="block text-xs font-medium text-gray-500 mb-1">
+                                <label className="block">
+                                    <span className="mb-1 block text-xs font-medium text-gray-500">
                                         Service
                                     </span>
 
@@ -700,133 +834,60 @@ ${clone.outerHTML}
                                             setMeta((prev) => ({
                                                 ...prev,
                                                 serviceType,
-                                                serial: "", // clear old serial when service changes
+                                                serial: "",
                                             }));
 
                                             setInvoiceCreated(false);
                                         }}
-                                        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-cyan-600/40 focus:border-cyan-600"
+                                        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 focus:border-cyan-600 focus:outline-none focus:ring-2 focus:ring-cyan-600/40"
                                     >
-                                        <option value="CS">
-                                            CS - Consultancy Services
-                                        </option>
-
-                                        <option value="DS">
-                                            DS - DigiShop
-                                        </option>
+                                        <option value="">None</option>
+                                        <option value="CS">CS - Consultancy Services</option>
+                                        <option value="DS">DS - DigiShop</option>
                                     </select>
                                 </label>
 
                                 {/* Serial + Get Next Number */}
-                                {/* Serial + Get Next Number */}
-                                <div className="min-w-0">
-                                    <span className="block text-xs font-medium text-gray-500 mb-1">
-                                        Serial
-                                    </span>
+                                {meta.includeSerial && (
+                                    <div className="min-w-0">
+                                        <label className="mb-1 block text-xs font-medium text-gray-500">
+                                            Serial
+                                        </label>
 
-                                    {/* Serial Input */}
-                                    <input
-                                        type="text"
-                                        inputMode="numeric"
-                                        value={meta.serial}
-                                        onChange={(e) => {
-                                            setMeta((prev) => ({
-                                                ...prev,
-                                                serial: e.target.value.replace(/\D/g, ""),
-                                            }));
+                                        <input
+                                            type="text"
+                                            inputMode="numeric"
+                                            value={meta.serial}
+                                            onChange={(e) => {
+                                                const serial = e.target.value.replace(/\D/g, "");
 
-                                            setInvoiceCreated(false);
-                                        }}
-                                        placeholder="555"
-                                        className="
-            w-full
-            rounded-lg
-            border border-gray-300
-            bg-white
-            px-3 py-2
-            text-sm
-            text-gray-800
-            focus:outline-none
-            focus:ring-2
-            focus:ring-cyan-600/40
-            focus:border-cyan-600
-        "
-                                    />
+                                                setMeta((prev) => ({
+                                                    ...prev,
+                                                    serial,
+                                                }));
 
-                                    {/* Next Button - Always Next Line */}
-                                    <button
-                                        type="button"
-                                        onClick={handleFetchInvoiceNumber}
-                                        disabled={fetchingInvoiceNumber}
-                                        title="Get next invoice serial number"
-                                        className="
-            mt-2
-            inline-flex
-            w-full
-            items-center
-            justify-center
-            gap-1.5
-            rounded-lg
-            border
-            border-cyan-600
-            bg-cyan-600
-            px-4
-            py-2
-            text-xs
-            font-semibold
-            text-white
-            shadow-sm
-            transition-all
-            duration-200
-            hover:bg-cyan-700
-            hover:border-cyan-700
-            hover:shadow
-            focus:outline-none
-            focus:ring-2
-            focus:ring-cyan-600/30
-            disabled:cursor-not-allowed
-            disabled:opacity-60
-        "
-                                    >
-                                        {fetchingInvoiceNumber ? (
-                                            <>
-                                                <svg
-                                                    className="h-3.5 w-3.5 animate-spin"
-                                                    viewBox="0 0 24 24"
-                                                    fill="none"
-                                                >
-                                                    <circle
-                                                        className="opacity-30"
-                                                        cx="12"
-                                                        cy="12"
-                                                        r="9"
-                                                        stroke="currentColor"
-                                                        strokeWidth="3"
-                                                    />
+                                                setInvoiceCreated(false);
+                                            }}
+                                            placeholder="001"
+                                            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 focus:border-cyan-600 focus:outline-none focus:ring-2 focus:ring-cyan-600/40"
+                                        />
 
-                                                    <path
-                                                        className="opacity-90"
-                                                        d="M21 12a9 9 0 0 0-9-9"
-                                                        stroke="currentColor"
-                                                        strokeWidth="3"
-                                                        strokeLinecap="round"
-                                                    />
-                                                </svg>
+                                        <button
+                                            type="button"
+                                            onClick={handleFetchInvoiceNumber}
+                                            disabled={fetchingInvoiceNumber || !meta.serviceType}
+                                            className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-cyan-600 bg-cyan-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-cyan-700 disabled:cursor-not-allowed disabled:opacity-60"
+                                        >
+                                            {fetchingInvoiceNumber ? "Loading..." : "↻ Next Serial"}
+                                        </button>
 
-                                                <span>Loading...</span>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <span className="text-sm">↻</span>
-                                                <span>Next</span>
-                                            </>
+                                        {!meta.serviceType && (
+                                            <p className="mt-1 text-xs text-amber-600">
+                                                Select a service to fetch the next serial.
+                                            </p>
                                         )}
-                                    </button>
-
-                                    <p className="mt-1 text-[10px] text-gray-400">
-                                        Fetch the next available serial for this invoice type and service.
-                                    </p>
-                                </div>
+                                    </div>
+                                )}
                             </div>
 
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -835,13 +896,8 @@ ${clone.outerHTML}
                                 {/* <div className="grid grid-cols-2 gap-3"> */}
 
                                 <Field
-                                    label="Invoice Prefix"
-                                    value={`IART-${meta.invoiceType}-${meta.serviceType}-${new Date(meta.date)
-                                        .toLocaleDateString("en-GB", {
-                                            month: "2-digit",
-                                            year: "2-digit",
-                                        })
-                                        .replace("/", "")}-`}
+                                    label="Invoice Number Preview"
+                                    value={invoiceNumber}
                                     readOnly
                                 />
 
