@@ -28,9 +28,11 @@ import {
     getClientInvoiceNumber,
     createClientInvoiceNumber,
     uploadUserLetter,
-    getLetterById
+    getSelfLetters,
+    getEmployeeLetters,
+    updateLetterStatus
 } from "../controller/authController.js";
-import { protect } from "../middleware/authMiddleware.js";
+import { protect, protectAdminHr } from "../middleware/authMiddleware.js";
 import multer from "multer";
 
 const router = express.Router();
@@ -45,13 +47,16 @@ const uploadFields = upload.fields([
     { name: "passbookFile", maxCount: 1 },
     { name: "profilePhoto", maxCount: 1 },
     { name: "resume", maxCount: 1 },
-    { name: "file", maxCount: 1 },
+
 ]);
 
 const uploadResume = upload.fields([
     { name: "resume", maxCount: 1 },
 ]);
 
+const uploadLetter = upload.fields([
+    { name: "file", maxCount: 1 },
+]);
 
 router.post("/register", protect, uploadFields, register);
 router.post("/login", login);
@@ -78,8 +83,10 @@ router.put("/application-update/:id", protect, updateCareerApplicationStatus);
 router.post("/client-invoice", protect, createClientInvoiceNumber);
 router.get("/client-invoice/next-number", protect, getClientInvoiceNumber);
 
-router.post("/assign-letter", protect, uploadFields, uploadUserLetter);
-router.get("/assign-letter", protect, uploadFields, getLetterById);
+router.post("/assign-letter", protectAdminHr, uploadLetter, uploadUserLetter);
+router.get("/assign-letter/:id", protectAdminHr, getEmployeeLetters);
+router.patch("/letter/:id/status", protectAdminHr, updateLetterStatus);
+router.get("/assign-letter", protect, getSelfLetters);
 
 // ********************************************************WEBISTE API's ROUTES**********************************************************************
 router.post("/contact-us", websiteContactUs);

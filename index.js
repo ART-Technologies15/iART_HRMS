@@ -8,6 +8,7 @@ import calendarRoutes from "./routes/calendarRoutes.js";
 import mailRoutes from "./routes/mailRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
 import assestsRoutes from "./routes/assestsRoutes.js";
+import projectRoutes from "./routes/projectRoutes.js";
 import cors from "cors";
 import morgan from "morgan";
 
@@ -29,6 +30,7 @@ app.use("/api/calendar", calendarRoutes);
 app.use("/api/mail", mailRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/assests", assestsRoutes);
+app.use("/api/project", projectRoutes);
 app.get("/", (req, res) => res.send("Attendance Portal API is running"));
 
 const PORT = process.env.PORT_KEY || 5000;

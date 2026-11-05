@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import User from "../models/Users.js";
+import Letter from "../models/Letter.js";
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
 import LeaveBalance from "../models/LeaveBalance.js";
@@ -3635,35 +3636,31 @@ export const uploadUserLetter = async (req, res) => {
   try {
     const { userId, type } = req.body;
 
-    // =====================================================
-    // VALIDATION
-    // =====================================================
-
-    if (!userId) {
+    // Validation
+    if (!userId || !mongoose.isValidObjectId(userId)) {
       return res.status(400).json({
         success: false,
-        message: "userId is required.",
+        message: "Valid userId is required.",
       });
     }
 
-    if (!type) {
+    if (!type?.trim()) {
       return res.status(400).json({
         success: false,
         message: "Letter type is required.",
       });
     }
 
-    if (!req.file) {
+    const letterFile = req.files?.file?.[0];
+
+    if (!letterFile) {
       return res.status(400).json({
         success: false,
         message: "Letter file is required.",
       });
     }
 
-    // =====================================================
-    // FIND USER
-    // =====================================================
-
+    // Find employee
     const user = await User.findById(userId);
 
     if (!user) {
@@ -3675,122 +3672,78 @@ export const uploadUserLetter = async (req, res) => {
 
     const letterType = type.toLowerCase().trim();
 
-    // =====================================================
-    // UPLOAD NEW LETTER TO S3
-    // =====================================================
+    // Upload to S3
+    const uploadedFile = await uploadToS3(
+      letterFile.buffer,
+      letterFile.originalname,
+      letterFile.mimetype
+    );
 
-    const uploadedFile = await uploadToS3(req.file);
-
-    const fileUrl =
-      uploadedFile?.url ||
-      uploadedFile?.Location ||
-      uploadedFile?.key;
+    const fileUrl = uploadedFile?.Location;
 
     if (!fileUrl) {
       return res.status(500).json({
         success: false,
-        message: "Letter uploaded but S3 URL could not be obtained.",
+        message: "S3 URL could not be obtained.",
       });
     }
 
-    // =====================================================
-    // CHECK EXISTING LETTER
-    // =====================================================
-
-    const existingLetterIndex = user.letters.findIndex(
-      (letter) =>
-        letter.type === letterType &&
-        letter.status !== "revoked"
+    // Revoke previous active letter of the same type
+    await Letter.updateMany(
+      {
+        employee: userId,
+        type: letterType,
+        status: "active",
+      },
+      {
+        $set: {
+          status: "revoked",
+          updatedBy: req.user?._id || null,
+        },
+      }
     );
 
-    // =====================================================
-    // UPDATE EXISTING LETTER
-    // =====================================================
-
-    if (existingLetterIndex !== -1) {
-      const existingLetter =
-        user.letters[existingLetterIndex];
-
-      // Delete old S3 file
-      if (existingLetter.file) {
-        try {
-          await deleteS3File(existingLetter.file);
-        } catch (deleteError) {
-          console.error(
-            "Failed to delete old letter from S3:",
-            deleteError
-          );
-        }
-      }
-
-      existingLetter.file = fileUrl;
-      existingLetter.updatedAt = new Date();
-      existingLetter.updatedBy = req.user?._id || null;
-
-      await user.save();
-
-      return res.status(200).json({
-        success: true,
-        message: "User letter updated successfully.",
-        letter: existingLetter,
-      });
-    }
-
-    // =====================================================
-    // CREATE NEW LETTER
-    // =====================================================
-
-    user.letters.push({
+    // Create new letter
+    const letter = await Letter.create({
+      employee: userId,
       type: letterType,
       title: getLetterTitle(letterType),
       file: fileUrl,
       status: "active",
       assignedAt: new Date(),
       assignedBy: req.user?._id || null,
-      updatedAt: new Date(),
       updatedBy: req.user?._id || null,
     });
-
-    await user.save();
-
-    const newLetter =
-      user.letters[user.letters.length - 1];
 
     return res.status(201).json({
       success: true,
       message: "User letter uploaded successfully.",
-      letter: newLetter,
+      letter,
     });
+
   } catch (err) {
-    console.error(
-      "Error uploading user letter:",
-      err
-    );
+    console.log("Error uploading user letter", err);
 
     return res.status(500).json({
       success: false,
-      message: "Server error during user letter upload.",
-      error: err.message,
+      message: "Server error during letter upload.",
     });
   }
 };
 
-export const getLetterById = async (req, res) => {
+export const getSelfLetters = async (req, res) => {
   try {
-    // Priority:
-    // 1. userId from body
-    // 2. logged-in user's _id
-    const userId = req.body?.userId || req.user?._id;
+    const userId = req.user?._id;
 
     if (!userId) {
-      return res.status(400).json({
+      return res.status(401).json({
         success: false,
-        message: "User ID is required.",
+        message: "Authentication required.",
       });
     }
 
     const user = await User.findById(userId)
-      .select("_id employeeId name email letters");
+      .select("_id employeeId name email");
 
     if (!user) {
       return res.status(404).json({
@@ -3798,6 +3751,15 @@ export const getLetterById = async (req, res) => {
         message: "User not found.",
       });
     }
+
+    const letters = await Letter.find({
+      employee: userId,
+      status: "active",
+    })
+      .populate("assignedBy", "name employeeId")
+      .populate("updatedBy", "name employeeId")
+      .sort({ assignedAt: -1 })
+      .lean();
 
     return res.status(200).json({
       success: true,
@@ -3807,21 +3769,160 @@ export const getLetterById = async (req, res) => {
         employeeId: user.employeeId,
         name: user.name,
         email: user.email,
-        letters: user.letters || [],
+        totalLetters: letters.length,
+        letters,
       },
     });
 
   } catch (error) {
-    console.error("Error fetching user letters:", error);
-
+    console.log("Error fetching employee letters", error);
     return res.status(500).json({
       success: false,
       message: "Server error while fetching user letters.",
-      error: error.message,
     });
   }
 };
 
+export const getEmployeeLetters = async (req, res) => {
+  try {
+    const userId = req.user?._id;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Authentication required.",
+      });
+    }
+
+    const { id } = req.params;
+
+    // Validate employee ID
+    if (!id || !mongoose.isValidObjectId(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Valid employee ID is required.",
+      });
+    }
+
+    // Find employee
+    const user = await User.findById(id)
+      .select("_id employeeId name email department designation role");
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "Employee not found.",
+      });
+    }
+
+    // Fetch all letters (active and revoked)
+    const letters = await Letter.find({
+      employee: id,
+    })
+      .populate("assignedBy", "name employeeId role")
+      .populate("updatedBy", "name employeeId role")
+      .sort({ createdAt: -1 })
+      .lean();
+
+    return res.status(200).json({
+      success: true,
+      message: "Employee letters fetched successfully.",
+      data: {
+        employee: {
+          userId: user._id,
+          employeeId: user.employeeId,
+          name: user.name,
+          email: user.email,
+          department: user.department,
+          designation: user.designation,
+          role: user.role,
+        },
+        totalLetters: letters.length,
+        activeLetters: letters.filter(
+          letter => letter.status === "active"
+        ).length,
+        revokedLetters: letters.filter(
+          letter => letter.status === "revoked"
+        ).length,
+        letters,
+      },
+    });
+
+  } catch (error) {
+    console.log("Error fetching employee letters", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Server error while fetching employee letters.",
+    });
+  }
+};
+
+export const updateLetterStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    // Validate Letter ID
+    if (!mongoose.isValidObjectId(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid letter ID.",
+      });
+    }
+
+    // Validate status
+    const allowedStatuses = ["active", "revoked"];
+
+    if (!status || !allowedStatuses.includes(status.toLowerCase())) {
+      return res.status(400).json({
+        success: false,
+        message: "Status must be either active or revoked.",
+      });
+    }
+
+    const letter = await Letter.findById(id);
+
+    if (!letter) {
+      return res.status(404).json({
+        success: false,
+        message: "Letter not found.",
+      });
+    }
+
+    const updatedLetter = await Letter.findByIdAndUpdate(
+      id,
+      {
+        $set: {
+          status: status.toLowerCase(),
+          updatedBy: req.user._id,
+          updatedAt: new Date(),
+        },
+      },
+      {
+        new: true,
+        runValidators: true,
+      }
+    )
+      .populate("employee", "name employeeId email department designation")
+      .populate("assignedBy", "name employeeId role")
+      .populate("updatedBy", "name employeeId role");
+
+    return res.status(200).json({
+      success: true,
+      message: `Letter ${status.toLowerCase()} successfully.`,
+      data: updatedLetter,
+    });
+
+  } catch (error) {
+    console.log("Update letter status error", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update letter status.",
+    });
+  }
+};
 
 // ********************************************************WEBISTE API**********************************************************************
 
