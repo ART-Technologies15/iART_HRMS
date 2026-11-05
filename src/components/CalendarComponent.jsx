@@ -1,4 +1,5 @@
 import React from "react";
+import { useTheme } from "../context/ThemeContext";
 
 const DAYS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
 
@@ -6,8 +7,11 @@ const Calendar = ({
   month,
   year,
   nonWorkingDays = [],
-  onDayClick = () => {},
+  onDayClick = () => { },
+  isAdmin = false,
 }) => {
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === "dark";
   const monthIndex = month - 1;
 
   if (
@@ -73,16 +77,16 @@ const Calendar = ({
   }
 
   return (
-    <div className="bg-white border border-[#E0E8F5] rounded-xl p-7 shadow-sm mx-auto">
+    <div className="mx-auto rounded-xl border border-[#E0E8F5] bg-white p-7 shadow-sm dark:border-slate-700 dark:bg-slate-900">
       {/* Header */}
-      <h3 className="text-center text-lg font-semibold text-[#344B7A] mb-3">
+      <h3 className="mb-3 text-center text-lg font-semibold text-[#344B7A] dark:text-slate-100">
         {monthNames[monthIndex]} {year}
       </h3>
 
-      <div className="border-t border-[#E0E8F5] mb-3"></div>
+      <div className="mb-3 border-t border-[#E0E8F5] dark:border-slate-700"></div>
 
       {/* Weekday Labels */}
-      <div className="grid grid-cols-7 gap-2 text-center text-sm font-medium text-[#7D8FB3] mb-2">
+      <div className="mb-2 grid grid-cols-7 gap-2 text-center text-sm font-medium text-[#7D8FB3] dark:text-slate-400">
         {DAYS.map((day) => (
           <div key={day}>{day}</div>
         ))}
@@ -98,24 +102,38 @@ const Calendar = ({
           const thisDate = new Date(year, monthIndex, date);
           const isPastDate = thisDate < todayStart;
 
-          const isClickable = isCurrentMonth && !isPastDate;
+          const isClickable = isCurrentMonth && (isAdmin || !isPastDate);
+          const dayTextColor = isToday
+            ? "#ffffff"
+            : isNonWorking
+              ? (isDark ? "#fecdd3" : "#b91c1c")
+              : !isCurrentMonth
+                ? (isDark ? "#64748b" : "#BFC8E6")
+                : (isDark ? "#e2e8f0" : "#1E2A4A");
+          const dayBackgroundColor = isToday
+            ? "#4A6CF7"
+            : isNonWorking
+              ? (isDark ? "#7f1d1d" : "#fecaca")
+              : undefined;
 
           return (
             <div
               key={idx}
               title={match?.reason || ""}
-              onClick={() => isClickable && onDayClick(date)}
+              onClick={() => {
+                if (isClickable) onDayClick(date);
+              }}
               className={`
-    aspect-square flex items-center justify-center rounded-full text-sm transition-all
-    ${!isCurrentMonth ? "text-[#BFC8E6]" : "text-[#1E2A4A]"}
-    ${isNonWorking ? "bg-red-200 text-red-700 font-semibold" : ""}
-    ${isToday ? "bg-[#4A6CF7] text-white font-semibold" : ""}
-    ${
-      isClickable
-        ? "cursor-pointer hover:bg-[#E8EEFB]"
-        : "cursor-not-allowed opacity-50"
-    }
-  `}
+      aspect-square flex items-center justify-center rounded-full text-sm transition-all
+      ${!isCurrentMonth ? "text-[#BFC8E6] dark:text-slate-600" : "text-[#1E2A4A] dark:text-slate-200"}
+      ${isNonWorking ? "bg-red-200 text-red-700 font-semibold dark:bg-red-900 dark:text-red-200" : ""}
+      ${isToday ? "bg-[#4A6CF7] text-white font-semibold" : ""}
+      ${isClickable
+                  ? "cursor-pointer hover:bg-[#E8EEFB] dark:hover:bg-slate-700"
+                  : "cursor-not-allowed"
+                }
+    `}
+              style={{ color: dayTextColor, backgroundColor: dayBackgroundColor, opacity: isClickable || isDark ? 1 : 0.5 }}
             >
               {date}
             </div>

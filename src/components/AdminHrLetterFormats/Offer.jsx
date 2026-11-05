@@ -9,6 +9,7 @@ import {
 
 import { getPhoneBook, assignLetter } from "../../api/authApi";
 import iArtLogo from "../../assets/logoiart.svg";
+import { toast } from "react-toastify";
 
 
 export const Offer = () => {
@@ -47,7 +48,7 @@ export const Offer = () => {
     if (!file) return;
 
     if (!file.type.startsWith("image/")) {
-      alert("Please upload an image file (PNG, JPG, etc.) for the signature.");
+      toast.error("Please upload an image file (PNG, JPG, etc.) for the signature.");
       return;
     }
 
@@ -362,7 +363,7 @@ export const Offer = () => {
         error
       );
 
-      alert(
+      toast.error(
         "Failed to generate DOC file."
       );
     } finally {
@@ -652,7 +653,7 @@ export const Offer = () => {
             response
           );
 
-          alert(
+          toast.error(
             response?.message ||
             "PDF downloaded, but the offer letter could not be assigned."
           );
@@ -675,7 +676,7 @@ export const Offer = () => {
         error
       );
 
-      alert(
+      toast.error(
         error?.message ||
         "Failed to generate PDF."
       );
@@ -1257,6 +1258,7 @@ export const Offer = () => {
 
           <div
             ref={letterRef}
+            data-theme="light"
             style={{
               width: "794px",
               minHeight: "1123px",

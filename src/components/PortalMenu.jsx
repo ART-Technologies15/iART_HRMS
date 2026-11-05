@@ -45,7 +45,7 @@ const PortalMenu = ({ anchorRef, open, onClose, children, width = 160 }) => {
     <div
       ref={menuRef}
       style={{ top: pos.top, left: pos.left, width }}
-      className="fixed z-50 bg-white border border-gray-200 rounded-md shadow-lg"
+      className="fixed z-50 bg-white dark:bg-[#131316] border border-gray-200 dark:border-[#33333a] rounded-md shadow-lg dark:shadow-[0_10px_25px_rgba(0,0,0,0.6)] overflow-hidden"
     >
       {children}
     </div>,

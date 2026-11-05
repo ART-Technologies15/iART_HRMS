@@ -33,6 +33,7 @@ const PhoneBookPage = () => {
   const [loadingMore, setLoadingMore] = useState(false); // infinite-scroll loads
 
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [filters, setFilters] = useState({
     designation: "",
     role: "",
@@ -53,6 +54,11 @@ const PhoneBookPage = () => {
     [filters]
   );
 
+  useEffect(() => {
+    const timeoutId = setTimeout(() => setDebouncedSearch(search.trim()), 500);
+    return () => clearTimeout(timeoutId);
+  }, [search]);
+
   const fetchPage = useCallback(
     async (pageToFetch, { reset }) => {
       const thisRequest = ++requestId.current;
@@ -62,7 +68,7 @@ const PhoneBookPage = () => {
       const res = await getPhoneBook({
         page: pageToFetch,
         limit: PER_PAGE,
-        search,
+        search: debouncedSearch,
         ...filters,
       });
 
@@ -82,7 +88,7 @@ const PhoneBookPage = () => {
       setInitialLoading(false);
       setLoadingMore(false);
     },
-    [search, filters]
+    [debouncedSearch, filters]
   );
 
   // Search/filter change → start over from page 1, replacing (not
@@ -90,7 +96,7 @@ const PhoneBookPage = () => {
   useEffect(() => {
     fetchPage(1, { reset: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, filters]);
+  }, [debouncedSearch, filters]);
 
   // Infinite scroll: observe a sentinel just below the grid and load the
   // next page when it enters the viewport, as long as one isn't already

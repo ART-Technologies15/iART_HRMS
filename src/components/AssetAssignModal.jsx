@@ -198,7 +198,7 @@ const AssetAssignModal = ({ open, onClose, onSubmit, mode = "assign", asset, loa
                                         </div>
 
                                         {showEmployeeList && (
-                                            <div className="absolute z-10 mt-1 max-h-48 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg">
+                                            <div className="absolute z-10 mt-1 max-h-48 w-full overflow-y-auto rounded-lg border border-slate-200 dark:border-[#33333a] bg-white dark:bg-[#131316] shadow-lg dark:shadow-[0_10px_25px_rgba(0,0,0,0.6)]">
                                                 {employeeSearchLoading && employeeResults.length === 0 ? (
                                                     <p className="px-3.5 py-2.5 text-xs text-slate-400">Searching...</p>
                                                 ) : employeeResults.length === 0 ? (
@@ -217,28 +217,28 @@ const AssetAssignModal = ({ open, onClose, onSubmit, mode = "assign", asset, loa
                                                                     setShowEmployeeList(false);
                                                                 }}
                                                                 title={inactive ? "This employee is inactive and can't be assigned assets" : undefined}
-                                                                className={`flex w-full flex-col items-start px-3.5 py-2 text-left ${inactive ? "cursor-not-allowed opacity-50" : "hover:bg-slate-50"
+                                                                className={`flex w-full flex-col items-start px-3.5 py-2 text-left ${inactive ? "cursor-not-allowed opacity-50" : "hover:bg-slate-50 dark:hover:bg-[#1e1e23]"
                                                                     }`}
                                                             >
                                                                 <div className="flex w-full items-center justify-between">
-                                                                    <span className="flex items-center gap-1.5 text-sm font-medium text-slate-700">
+                                                                    <span className="flex items-center gap-1.5 text-sm font-medium text-slate-700 dark:text-zinc-200">
                                                                         {emp.name}
 
                                                                         {inactive && (
-                                                                            <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-400">
+                                                                            <span className="rounded-full bg-slate-100 dark:bg-[#232328] px-1.5 py-0.5 text-[10px] font-medium text-slate-400 dark:text-zinc-400">
                                                                                 Inactive
                                                                             </span>
                                                                         )}
                                                                     </span>
 
                                                                     {emp.employeeId && (
-                                                                        <span className="text-xs font-medium text-slate-500">
+                                                                        <span className="text-xs font-medium text-slate-500 dark:text-zinc-400">
                                                                             #{emp.employeeId}
                                                                         </span>
                                                                     )}
                                                                 </div>
 
-                                                                <span className="mt-0.5 text-xs text-slate-500">
+                                                                <span className="mt-0.5 text-xs text-slate-500 dark:text-zinc-400">
                                                                     {emp.email}
                                                                 </span>
 

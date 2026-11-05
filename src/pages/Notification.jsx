@@ -230,14 +230,6 @@ const Notifications = () => {
                     `}
                         />
                     </button>
-
-                    <span
-                        className={`text-xs font-semibold
-                    ${row.active ? "text-green-600" : "text-gray-500"}
-                `}
-                    >
-                        {row.active ? "Active" : "Inactive"}
-                    </span>
                 </div>
             ),
         },

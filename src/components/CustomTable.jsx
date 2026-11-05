@@ -121,7 +121,7 @@ const CustomTable = ({
     <div
       onClick={() => onRowClick?.(row)}
       className={`px-4 py-5 ${onRowClick ? "cursor-pointer active:bg-[#F8FAFC]" : ""}`}
-      style={{ borderBottom: "1px solid #E2E8F0" }}
+      style={{ borderBottom: "1px solid var(--table-border)" }}
     >
       <div className="grid grid-cols-2 gap-x-4 gap-y-4">
         {columns.map((col, idx) => {
@@ -131,11 +131,11 @@ const CustomTable = ({
             <div key={idx} className="min-w-0">
               <p
                 className="text-[9.5px] font-semibold uppercase tracking-wider mb-0.5"
-                style={{ color: "#94A3B8" }}
+                style={{ color: "var(--table-muted)" }}
               >
                 {col.label}
               </p>
-              <div className="text-[13px] font-medium break-words" style={{ color: "#0B1220" }}>
+              <div className="text-[13px] font-medium break-words" style={{ color: "var(--table-heading)" }}>
                 {value}
               </div>
             </div>
@@ -148,7 +148,7 @@ const CustomTable = ({
   return (
     <div
       className="bg-white rounded-lg border overflow-hidden"
-      style={{ borderColor: "#E2E8F0" }}
+      style={{ borderColor: "var(--table-border)" }}
     >
       {/* Desktop / Tablet Table */}
       <div className="hidden xl:block overflow-x-auto">
@@ -169,10 +169,10 @@ const CustomTable = ({
                       idx
                     )}`}
                     style={{
-                      backgroundColor: "#F8FAFC",
-                      color: "#0B1220",
-                      borderBottom: "2px solid #E2E8F0",
-                      borderRight: idx < columns.length - 1 ? "1px solid #E2E8F0" : "none",
+                      backgroundColor: "var(--table-header)",
+                      color: "var(--table-heading)",
+                      borderBottom: "2px solid var(--table-border)",
+                      borderRight: idx < columns.length - 1 ? "1px solid var(--table-column-border)" : "none",
                       fontSize: "11px",
                       letterSpacing: "0.05em",
                       textTransform: "uppercase",
@@ -186,7 +186,7 @@ const CustomTable = ({
                       <ChevronsUpDown
                         size={12}
                         className="opacity-0 group-hover:opacity-70 transition-opacity"
-                        style={{ color: "#0FBAFB" }}
+                        style={{ color: "var(--table-brand)" }}
                       />
                     </div>
                   </th>
@@ -203,10 +203,10 @@ const CustomTable = ({
                   key={rIdx}
                   onClick={() => onRowClick?.(row)}
                   className={onRowClick ? "cursor-pointer" : ""}
-                  style={{ backgroundColor: zebra ? "#F8FAFC" : "#FFFFFF" }}
-                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#E5FAFF")}
+                  style={{ backgroundColor: zebra ? "var(--table-row-alt)" : "var(--table-surface)" }}
+                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "var(--table-hover)")}
                   onMouseLeave={(e) =>
-                    (e.currentTarget.style.backgroundColor = zebra ? "#F8FAFC" : "#FFFFFF")
+                    (e.currentTarget.style.backgroundColor = zebra ? "var(--table-row-alt)" : "var(--table-surface)")
                   }
                 >
                   {columns.map((col, cIdx) => {
@@ -222,9 +222,9 @@ const CustomTable = ({
                           cIdx
                         )}`}
                         style={{
-                          color: "#334155",
-                          borderBottom: "1px solid #E2E8F0",
-                          borderRight: cIdx < columns.length - 1 ? "1px solid #EEF2F7" : "none",
+                          color: "var(--table-text)",
+                          borderBottom: "1px solid var(--table-border)",
+                          borderRight: cIdx < columns.length - 1 ? "1px solid var(--table-column-border)" : "none",
                           backgroundColor: "inherit",
                           ...(isSticky
                             ? { position: "sticky", left: leftOffset, zIndex: 20 }
@@ -245,14 +245,14 @@ const CustomTable = ({
           <div className="flex flex-col items-center justify-center py-16 gap-2">
             <div
               className="flex h-10 w-10 items-center justify-center rounded-full"
-              style={{ backgroundColor: "#F8FAFC", border: "1px solid #E2E8F0" }}
+              style={{ backgroundColor: "var(--table-header)", border: "1px solid var(--table-border)" }}
             >
-              <Inbox size={16} style={{ color: "#94A3B8" }} />
+              <Inbox size={16} style={{ color: "var(--table-muted)" }} />
             </div>
-            <p className="text-sm font-medium" style={{ color: "#0B1220" }}>
+            <p className="text-sm font-medium" style={{ color: "var(--table-heading)" }}>
               No records found
             </p>
-            <p className="text-xs" style={{ color: "#94A3B8" }}>
+            <p className="text-xs" style={{ color: "var(--table-muted)" }}>
               Try adjusting your filters or check back later.
             </p>
           </div>
@@ -265,11 +265,11 @@ const CustomTable = ({
           <div className="flex flex-col items-center justify-center py-14 gap-2 px-4">
             <div
               className="flex h-10 w-10 items-center justify-center rounded-full"
-              style={{ backgroundColor: "#F8FAFC", border: "1px solid #E2E8F0" }}
+              style={{ backgroundColor: "var(--table-header)", border: "1px solid var(--table-border)" }}
             >
-              <Inbox size={16} style={{ color: "#94A3B8" }} />
+              <Inbox size={16} style={{ color: "var(--table-muted)" }} />
             </div>
-            <p className="text-sm font-medium text-center" style={{ color: "#0B1220" }}>
+            <p className="text-sm font-medium text-center" style={{ color: "var(--table-heading)" }}>
               No records found
             </p>
           </div>
@@ -282,10 +282,10 @@ const CustomTable = ({
       {!hidePagination && (
         <div
           className="flex flex-col gap-3 px-4 py-3"
-          style={{ borderTop: "1px solid #E2E8F0", backgroundColor: "#FCFDFE" }}
+          style={{ borderTop: "1px solid var(--table-border)", backgroundColor: "var(--table-footer)" }}
         >
           {footerLegend.length > 0 && (
-            <div className="flex flex-wrap items-center gap-4 text-xs" style={{ color: "#47556A" }}>
+            <div className="flex flex-wrap items-center gap-4 text-xs" style={{ color: "var(--table-text)" }}>
               {footerLegend.map((item, idx) => (
                 <div key={idx} className="flex items-center gap-1.5">
                   <span className={`w-2 h-2 rounded-full ${item.color}`} />
@@ -297,13 +297,13 @@ const CustomTable = ({
 
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
             {/* Record count */}
-            <p className="text-xs order-2 sm:order-1" style={{ color: "#94A3B8" }}>
+            <p className="text-xs order-2 sm:order-1" style={{ color: "var(--table-muted)" }}>
               {totalCount === 0 ? (
                 "No results"
               ) : (
                 <>
-                  Showing <span style={{ color: "#0B1220", fontWeight: 600 }}>{rangeStart}–{rangeEnd}</span>{" "}
-                  of <span style={{ color: "#0B1220", fontWeight: 600 }}>{totalCount}</span>
+                  Showing <span style={{ color: "var(--table-heading)", fontWeight: 600 }}>{rangeStart}–{rangeEnd}</span>{" "}
+                  of <span style={{ color: "var(--table-heading)", fontWeight: 600 }}>{totalCount}</span>
                 </>
               )}
             </p>
@@ -315,9 +315,9 @@ const CustomTable = ({
                 <select
                   className="appearance-none rounded-md pl-2.5 pr-7 py-1.5 text-xs font-medium focus:outline-none focus:ring-2"
                   style={{
-                    border: "1px solid #E2E8F0",
-                    color: "#0B1220",
-                    backgroundColor: "#FFFFFF",
+                    border: "1px solid var(--table-border)",
+                    color: "var(--table-heading)",
+                    backgroundColor: "var(--table-surface)",
                   }}
                   value={rowsPerPage}
                   onChange={handleRowsPerPageChange}
@@ -332,7 +332,7 @@ const CustomTable = ({
                 <ChevronDown
                   size={12}
                   className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2"
-                  style={{ color: "#94A3B8" }}
+                  style={{ color: "var(--table-muted)" }}
                 />
               </div>
 
@@ -342,8 +342,8 @@ const CustomTable = ({
                   disabled={page === 1}
                   aria-label="First page"
                   className="hidden sm:flex p-1.5 rounded-md transition-colors disabled:cursor-not-allowed"
-                  style={{ color: page === 1 ? "#CBD5E1" : "#47556A" }}
-                  onMouseEnter={(e) => page !== 1 && (e.currentTarget.style.backgroundColor = "#F1F5F9")}
+                  style={{ color: page === 1 ? "var(--table-disabled)" : "var(--table-text)" }}
+                  onMouseEnter={(e) => page !== 1 && (e.currentTarget.style.backgroundColor = "var(--table-hover-soft)")}
                   onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
                 >
                   <ChevronsLeft size={15} />
@@ -354,8 +354,8 @@ const CustomTable = ({
                   disabled={page === 1}
                   aria-label="Previous page"
                   className="p-1.5 rounded-md transition-colors disabled:cursor-not-allowed"
-                  style={{ color: page === 1 ? "#CBD5E1" : "#47556A" }}
-                  onMouseEnter={(e) => page !== 1 && (e.currentTarget.style.backgroundColor = "#F1F5F9")}
+                  style={{ color: page === 1 ? "var(--table-disabled)" : "var(--table-text)" }}
+                  onMouseEnter={(e) => page !== 1 && (e.currentTarget.style.backgroundColor = "var(--table-hover-soft)")}
                   onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
                 >
                   <ChevronLeft size={15} />
@@ -372,11 +372,11 @@ const CustomTable = ({
                         className="min-w-[28px] h-7 rounded-md text-xs font-semibold transition-colors"
                         style={
                           p === page
-                            ? { backgroundColor: "#0FBAFB", color: "#FFFFFF" }
-                            : { color: "#47556A" }
+                            ? { backgroundColor: "var(--table-brand)", color: "#FFFFFF" }
+                            : { color: "var(--table-text)" }
                         }
                         onMouseEnter={(e) => {
-                          if (p !== page) e.currentTarget.style.backgroundColor = "#F1F5F9";
+                          if (p !== page) e.currentTarget.style.backgroundColor = "var(--table-hover-soft)";
                         }}
                         onMouseLeave={(e) => {
                           if (p !== page) e.currentTarget.style.backgroundColor = "transparent";
@@ -385,7 +385,7 @@ const CustomTable = ({
                         {p}
                       </button>
                     ) : (
-                      <span key={idx} className="px-1 text-xs" style={{ color: "#CBD5E1" }}>
+                      <span key={idx} className="px-1 text-xs" style={{ color: "var(--table-disabled)" }}>
                         …
                       </span>
                     )
@@ -395,7 +395,7 @@ const CustomTable = ({
                 {/* Compact indicator for mobile */}
                 <span
                   className="sm:hidden min-w-[3.5rem] text-center text-xs font-semibold"
-                  style={{ color: "#0B1220" }}
+                  style={{ color: "var(--table-heading)" }}
                 >
                   {page} / {totalPages}
                 </span>
@@ -405,9 +405,9 @@ const CustomTable = ({
                   disabled={page === totalPages}
                   aria-label="Next page"
                   className="p-1.5 rounded-md transition-colors disabled:cursor-not-allowed"
-                  style={{ color: page === totalPages ? "#CBD5E1" : "#47556A" }}
+                  style={{ color: page === totalPages ? "var(--table-disabled)" : "var(--table-text)" }}
                   onMouseEnter={(e) =>
-                    page !== totalPages && (e.currentTarget.style.backgroundColor = "#F1F5F9")
+                    page !== totalPages && (e.currentTarget.style.backgroundColor = "var(--table-hover-soft)")
                   }
                   onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
                 >
@@ -419,9 +419,9 @@ const CustomTable = ({
                   disabled={page === totalPages}
                   aria-label="Last page"
                   className="hidden sm:flex p-1.5 rounded-md transition-colors disabled:cursor-not-allowed"
-                  style={{ color: page === totalPages ? "#CBD5E1" : "#47556A" }}
+                  style={{ color: page === totalPages ? "var(--table-disabled)" : "var(--table-text)" }}
                   onMouseEnter={(e) =>
-                    page !== totalPages && (e.currentTarget.style.backgroundColor = "#F1F5F9")
+                    page !== totalPages && (e.currentTarget.style.backgroundColor = "var(--table-hover-soft)")
                   }
                   onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
                 >
@@ -432,7 +432,7 @@ const CustomTable = ({
               {/* Jump to page — only worth showing once there's real depth */}
               {totalPages > 8 && (
                 <form onSubmit={handleJumpSubmit} className="hidden lg:flex items-center gap-1.5">
-                  <span className="text-xs" style={{ color: "#94A3B8" }}>
+                  <span className="text-xs" style={{ color: "var(--table-muted)" }}>
                     Go to
                   </span>
                   <input
@@ -443,7 +443,7 @@ const CustomTable = ({
                     onChange={(e) => setJumpValue(e.target.value)}
                     placeholder={String(page)}
                     className="w-12 rounded-md px-1.5 py-1 text-xs text-center focus:outline-none focus:ring-2"
-                    style={{ border: "1px solid #E2E8F0", color: "#0B1220" }}
+                    style={{ border: "1px solid var(--table-border)", color: "var(--table-heading)", backgroundColor: "var(--table-surface)" }}
                   />
                 </form>
               )}

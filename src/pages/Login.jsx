@@ -7,6 +7,7 @@ import { loginUser } from "../api/authApi";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useTheme } from "../context/ThemeContext";
 const LoginPage = () => {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
@@ -14,6 +15,7 @@ const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
+  const { resolvedTheme } = useTheme();
   const [remember, setRemember] = useState(false);
 
   useEffect(() => {
@@ -68,10 +70,10 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col md:flex-row bg-[#C6E6FB]">
+    <div className="flex min-h-screen flex-col bg-[#C6E6FB] transition-colors md:flex-row dark:bg-slate-950">
       {/* Mobile logo */}
       <div className="flex md:hidden justify-center items-center pt-10">
-        <div className="bg-amber-50 rounded-2xl px-8 py-6 flex justify-center items-center backdrop-blur-md shadow-md">
+        <div className="flex items-center justify-center rounded-2xl bg-amber-50 px-8 py-6 shadow-md backdrop-blur-md dark:bg-slate-100">
           <img
             src={iArtLogo}
             alt="Company logo"
@@ -82,20 +84,20 @@ const LoginPage = () => {
 
       {/* Left Section */}
       <div className="flex flex-col justify-center px-8 md:px-16 lg:px-24 w-full md:w-1/2 py-10">
-        <h1 className="text-3xl font-bold text-gray-800 mb-2 text-center md:text-left">
+        <h1 className="mb-2 text-center text-3xl font-bold text-gray-800 dark:text-slate-100 md:text-left">
           Login
         </h1>
-        <p className="text-gray-600 mb-2 text-center md:text-left">
+        <p className="mb-2 text-center text-gray-600 dark:text-slate-300 md:text-left">
           Welcome Back
         </p>
-        <p className="text-gray-500 mb-8 text-center md:text-left">
+        <p className="mb-8 text-center text-gray-500 dark:text-slate-400 md:text-left">
           Please enter your login credentials.
         </p>
 
         <form className="space-y-6" onSubmit={handleSubmit}>
           {/* Email Field */}
           <div>
-            <label className="block text-gray-700 font-medium mb-1">
+            <label className="mb-1 block font-medium text-gray-700 dark:text-slate-300">
               Email ID
             </label>
             <input
@@ -103,13 +105,13 @@ const LoginPage = () => {
               placeholder="Enter Email ID"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full border border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 bg-amber-50"
+              className="w-full rounded-md border border-gray-300 bg-amber-50 px-4 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-400 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-400"
             />
           </div>
 
           {/* Password Field */}
           <div className="relative">
-            <label className="block text-gray-700 font-medium mb-1">
+            <label className="mb-1 block font-medium text-gray-700 dark:text-slate-300">
               Password
             </label>
             <input
@@ -117,7 +119,7 @@ const LoginPage = () => {
               placeholder="Password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full border border-gray-300 rounded-md px-4 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-400 bg-amber-50"
+              className="w-full rounded-md border border-gray-300 bg-amber-50 px-4 py-2 pr-10 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-400 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-400"
             />
 
             {/* Flat Eye Icon */}
@@ -131,7 +133,7 @@ const LoginPage = () => {
 
           {/* Remember Me */}
           <div className="flex items-center justify-between text-sm">
-            <label className="flex items-center space-x-2 text-gray-600">
+            <label className="flex items-center space-x-2 text-gray-600 dark:text-slate-300">
               <input
                 type="checkbox"
                 checked={remember}
@@ -146,8 +148,8 @@ const LoginPage = () => {
           <button
             type="submit"
             disabled={loading}
-            className={`w-full ${loading ? "bg-blue-300" : "bg-[#1D9BF0] hover:bg-blue-600"
-              } text-white font-semibold py-2 rounded-md transition`}
+            className={`w-full ${loading ? "bg-blue-300 dark:bg-blue-900" : "bg-[#1D9BF0] hover:bg-blue-600"
+              } rounded-md py-2 font-semibold text-white transition`}
           >
             {loading ? "Logging in..." : "LOGIN"}
           </button>
@@ -158,14 +160,16 @@ const LoginPage = () => {
       <div
         className="hidden md:flex w-full md:w-1/2 justify-center items-center p-10 relative"
         style={{
-          backgroundImage: `url(${loginCardBackground}), linear-gradient(135deg, #AAD9F9 10%, #72C0F6 54%, #1D9BF0 100%)`,
+          backgroundImage: resolvedTheme === "dark"
+            ? `url(${loginCardBackground}), linear-gradient(135deg, #0f172a 10%, #1e3a5f 54%, #164e63 100%)`
+            : `url(${loginCardBackground}), linear-gradient(135deg, #AAD9F9 10%, #72C0F6 54%, #1D9BF0 100%)`,
           backgroundRepeat: "no-repeat, no-repeat",
           backgroundPosition: "center, center",
           backgroundSize: "contain, cover",
         }}
       >
-        <div className="absolute inset-0 bg-black/10 pointer-events-none" />
-        <div className="relative z-10 bg-amber-50 rounded-2xl px-10 py-8 flex justify-center items-center backdrop-blur-md shadow-lg max-w-xs w-full">
+        <div className="pointer-events-none absolute inset-0 bg-black/10 dark:bg-black/30" />
+        <div className="relative z-10 flex w-full max-w-xs items-center justify-center rounded-2xl bg-amber-50 px-10 py-8 shadow-lg backdrop-blur-md dark:bg-slate-100">
           <img
             src={iArtLogo}
             alt="Company logo"

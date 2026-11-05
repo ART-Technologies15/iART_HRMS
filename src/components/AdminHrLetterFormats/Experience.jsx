@@ -5,6 +5,7 @@ import { Download, FileText, Loader2 } from "lucide-react";
 
 import { getPhoneBook, assignLetter } from "../../api/authApi";
 import iArtLogo from "../../assets/logoiart.svg";
+import { toast } from "react-toastify";
 
 export const Experience = () => {
     const letterRef = useRef(null);
@@ -38,7 +39,7 @@ export const Experience = () => {
         if (!file) return;
 
         if (!file.type.startsWith("image/")) {
-            alert("Please upload an image file (PNG, JPG, etc.) for the signature.");
+            toast.error("Please upload an image file (PNG, JPG, etc.) for the signature.");
             return;
         }
 
@@ -470,7 +471,7 @@ export const Experience = () => {
             URL.revokeObjectURL(url);
         } catch (error) {
             console.error("DOC generation error:", error);
-            alert("Failed to generate DOC file.");
+            toast.error("Failed to generate DOC file.");
         } finally {
             setDocLoading(false);
         }
@@ -542,7 +543,7 @@ export const Experience = () => {
                         response
                     );
 
-                    alert(
+                    toast.error(
                         response?.message ||
                         "PDF downloaded, but the Experience letter could not be assigned."
                     );
@@ -557,7 +558,7 @@ export const Experience = () => {
         } catch (error) {
             console.error("PDF generation error:", error);
 
-            alert(
+            toast.error(
                 error?.message ||
                 "Failed to generate Experience PDF."
             );
@@ -1071,6 +1072,7 @@ export const Experience = () => {
                 >
                     <div
                         ref={letterRef}
+                        data-theme="light"
                         style={{
                             width: "794px",
                             height: "1123px",

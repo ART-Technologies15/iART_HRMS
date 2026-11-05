@@ -46,9 +46,9 @@ const CalendarModal = ({ dateInfo, onClose, calendarData }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/30 flex items-center justify-center">
-      <div className="bg-white p-6 rounded-lg shadow-lg w-80">
-        <h3 className="text-lg font-semibold text-[#344B7A] mb-2">
+    <div className="fixed inset-0 bg-black/30 dark:bg-black/70 backdrop-blur-sm flex items-center justify-center z-50">
+      <div className="bg-white dark:bg-[#131316] p-6 rounded-lg shadow-lg dark:shadow-[0_25px_50px_-12px_rgba(0,0,0,0.7)] border border-transparent dark:border-[#33333a] w-80 text-gray-900 dark:text-zinc-100">
+        <h3 className="text-lg font-semibold text-[#344B7A] dark:text-sky-300 mb-2">
           {date}/{month}/{year}
         </h3>
 
@@ -67,7 +67,7 @@ const CalendarModal = ({ dateInfo, onClose, calendarData }) => {
         ) : (
           <>
             {/* ✅ If marking non-working, show input */}
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1">
               Reason (required)
             </label>
             <input
@@ -75,7 +75,7 @@ const CalendarModal = ({ dateInfo, onClose, calendarData }) => {
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               placeholder="Enter reason"
-              className="w-full border rounded px-3 py-2 text-sm mb-4"
+              className="w-full border border-gray-300 dark:border-[#33333a] bg-white dark:bg-[#1e1e23] text-gray-900 dark:text-zinc-100 rounded px-3 py-2 text-sm mb-4 placeholder:text-gray-400 dark:placeholder:text-zinc-500"
             />
           </>
         )}
@@ -96,7 +96,7 @@ const CalendarModal = ({ dateInfo, onClose, calendarData }) => {
 
         <button
           onClick={() => onClose(false)}
-          className="w-full mt-2 py-2 rounded-lg bg-gray-200 text-gray-700 font-medium"
+          className="w-full mt-2 py-2 rounded-lg bg-gray-200 dark:bg-[#232328] text-gray-700 dark:text-zinc-200 hover:bg-gray-300 dark:hover:bg-[#2c2c32] font-medium"
         >
           Cancel
         </button>

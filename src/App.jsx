@@ -27,11 +27,18 @@ import WebsiteContactUs from "./pages/WebsiteContactUs";
 import { CareerAndTraining } from "./pages/CareerAndTraining";
 import { JobDetails } from "./pages/JobDetails";
 import { AdminHrLetters } from "./pages/AdminHrLetters";
+import ProjectsPage from "./pages/ProjectsPage";
+import ProjectDetailPage from "./pages/ProjectDetailPage";
+import MyTasksPage from "./pages/MyTasksPage";
+import MyLettersPage from "./pages/MyLettersPage";
+import { useTheme } from "./context/ThemeContext";
 
 const App = () => {
+  const { resolvedTheme } = useTheme();
+
   return (
     <>
-      <ToastContainer position="top-center" autoClose={3000} />
+      <ToastContainer position="top-center" autoClose={3000} theme={resolvedTheme} />
 
       <Routes>
         {/* Public Asset QR Route */}
@@ -85,6 +92,17 @@ const App = () => {
           />
           <Route path="/phone-book" element={<PhoneBookPage />} />
           <Route path="/calendar" element={<YearCalendar />} />
+          <Route path="/projects" element={<ProjectsPage />} />
+          <Route path="/projects/:projectId" element={<ProjectDetailPage />} />
+          <Route path="/my-letters" element={<MyLettersPage />} />
+          <Route
+            path="/my-tasks"
+            element={
+              <EmployeeRoute>
+                <MyTasksPage />
+              </EmployeeRoute>
+            }
+          />
           {/* Admin and HR only */}
           <Route
             path="/users"

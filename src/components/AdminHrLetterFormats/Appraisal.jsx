@@ -5,6 +5,7 @@ import { Download, FileText, Loader2 } from "lucide-react";
 
 import { getPhoneBook, assignLetter } from "../../api/authApi";
 import iArtLogo from "../../assets/logoiart.svg";
+import { toast } from "react-toastify";
 
 export const Appraisal = () => {
     const letterRef = useRef(null);
@@ -38,7 +39,7 @@ export const Appraisal = () => {
         if (!file) return;
 
         if (!file.type.startsWith("image/")) {
-            alert("Please upload an image file (PNG, JPG, etc.) for the signature.");
+            toast.error("Please upload an image file (PNG, JPG, etc.) for the signature.");
             return;
         }
 
@@ -371,7 +372,7 @@ export const Appraisal = () => {
             URL.revokeObjectURL(url);
         } catch (error) {
             console.error("DOC generation error:", error);
-            alert("Failed to generate DOC file.");
+            toast.error("Failed to generate DOC file.");
         } finally {
             setDocLoading(false);
         }
@@ -641,7 +642,7 @@ export const Appraisal = () => {
                         response
                     );
 
-                    alert(
+                    toast.error(
                         response?.message ||
                         "PDF downloaded, but the appraisal letter could not be assigned."
                     );
@@ -656,7 +657,7 @@ export const Appraisal = () => {
         } catch (error) {
             console.error("PDF generation error:", error);
 
-            alert(
+            toast.error(
                 error?.message ||
                 "Failed to generate appraisal PDF."
             );
@@ -1076,6 +1077,7 @@ export const Appraisal = () => {
                 >
                     <div
                         ref={letterRef}
+                        data-theme="light"
                         style={{
                             width: "794px",
                             minHeight: "1123px",

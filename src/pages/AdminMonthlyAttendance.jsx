@@ -2,10 +2,12 @@ import React, { useState, useEffect } from "react";
 import { Menu, UserLock } from "lucide-react";
 import { getAdminMonthlyAttendance } from "../api/attendaceApi";
 import { useAuth } from "../context/AuthContext";
+import { useTheme } from "../context/ThemeContext";
 
 const AdminMonthlyAttendance = () => {
   const today = new Date();
   const { user } = useAuth();
+  const { resolvedTheme } = useTheme();
 
   const [month, setMonth] = useState(today.getMonth() + 1);
   const [year, setYear] = useState(today.getFullYear());
@@ -135,10 +137,11 @@ const AdminMonthlyAttendance = () => {
      STATUS STYLES
   --------------------------------------------- */
   const getStatusStyle = (status) => {
+    const isDark = resolvedTheme === "dark";
     const styles = {
       'Present': {
-        backgroundColor: '#e6f7e6',
-        color: '#1a8a1a',
+        backgroundColor: isDark ? '#064e3b' : '#e6f7e6',
+        color: isDark ? '#a7f3d0' : '#1a8a1a',
         padding: '4px 8px',
         borderRadius: '4px',
         textAlign: 'center',
@@ -147,8 +150,8 @@ const AdminMonthlyAttendance = () => {
         minWidth: '90px'
       },
       'Half Day': {
-        backgroundColor: '#fff3cd',
-        color: '#856404',
+        backgroundColor: isDark ? '#78350f' : '#fff3cd',
+        color: isDark ? '#fde68a' : '#856404',
         padding: '4px 8px',
         borderRadius: '4px',
         textAlign: 'center',
@@ -157,8 +160,8 @@ const AdminMonthlyAttendance = () => {
         minWidth: '90px'
       },
       'Absent': {
-        backgroundColor: '#f8d7da',
-        color: '#721c24',
+        backgroundColor: isDark ? '#881337' : '#f8d7da',
+        color: isDark ? '#fecdd3' : '#721c24',
         padding: '4px 8px',
         borderRadius: '4px',
         textAlign: 'center',
@@ -167,8 +170,8 @@ const AdminMonthlyAttendance = () => {
         minWidth: '90px'
       },
       'Holiday': {
-        backgroundColor: '#fff3e669',
-        color: '#d35400',
+        backgroundColor: isDark ? '#7c2d12' : '#fff3e669',
+        color: isDark ? '#fed7aa' : '#d35400',
         padding: '4px 8px',
         borderRadius: '4px',
         textAlign: 'center',
@@ -177,8 +180,8 @@ const AdminMonthlyAttendance = () => {
         minWidth: '90px'
       },
       'On Leave': {
-        backgroundColor: '#e6f3ff',
-        color: '#0066cc',
+        backgroundColor: isDark ? '#1e3a8a' : '#e6f3ff',
+        color: isDark ? '#bfdbfe' : '#0066cc',
         padding: '4px 8px',
         borderRadius: '4px',
         textAlign: 'center',
@@ -187,8 +190,8 @@ const AdminMonthlyAttendance = () => {
         minWidth: '90px'
       },
       'Not Joined': {
-        backgroundColor: '#f3f4f6',
-        color: '#9ca3af',
+        backgroundColor: isDark ? '#334155' : '#f3f4f6',
+        color: isDark ? '#cbd5e1' : '#9ca3af',
         padding: '4px 8px',
         borderRadius: '4px',
         textAlign: 'center',
@@ -197,7 +200,7 @@ const AdminMonthlyAttendance = () => {
         minWidth: '90px'
       },
       '--': {
-        color: '#9ca3af',
+        color: isDark ? '#94a3b8' : '#9ca3af',
         padding: '4px 8px',
         textAlign: 'center',
         fontWeight: 500,

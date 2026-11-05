@@ -5,6 +5,7 @@ import { Download, FileText, Loader2 } from "lucide-react";
 
 import { getPhoneBook, assignLetter } from "../../api/authApi";
 import iArtLogo from "../../assets/logoiart.svg";
+import { toast } from "react-toastify";
 
 export const Relieving = () => {
     const letterRef = useRef(null);
@@ -216,7 +217,7 @@ export const Relieving = () => {
         if (!file) return;
 
         if (!file.type.startsWith("image/")) {
-            alert("Please upload an image file (PNG, JPG, etc.) for the signature.");
+            toast.error("Please upload an image file (PNG, JPG, etc.) for the signature.");
             return;
         }
 
@@ -330,7 +331,7 @@ export const Relieving = () => {
             URL.revokeObjectURL(url);
         } catch (error) {
             console.error("DOC generation error:", error);
-            alert("Failed to generate DOC file.");
+            toast.error("Failed to generate DOC file.");
         } finally {
             setDocLoading(false);
         }
@@ -367,7 +368,7 @@ export const Relieving = () => {
 
                 if (!response?.success) {
                     console.error("Relieving assignment failed:", response);
-                    alert(
+                    toast.error(
                         response?.message ||
                         "PDF downloaded, but the Relieving letter could not be assigned."
                     );
@@ -378,7 +379,7 @@ export const Relieving = () => {
             }
         } catch (error) {
             console.error("PDF generation error:", error);
-            alert(error?.message || "Failed to generate Relieving PDF.");
+            toast.error(error?.message || "Failed to generate Relieving PDF.");
         } finally {
             setPdfLoading(false);
         }
@@ -617,6 +618,7 @@ export const Relieving = () => {
                 <div className="min-h-0 overflow-y-auto overflow-x-auto">
                     <div
                         ref={letterRef}
+                        data-theme="light"
                         style={{
                             width: "794px",
                             height: "1123px",

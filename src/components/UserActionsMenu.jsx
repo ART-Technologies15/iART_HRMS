@@ -46,7 +46,7 @@ const PortalMenu = ({ anchorRef, open, onClose, children, width = 160 }) => {
     <div
       ref={menuRef}
       style={{ top: pos.top, left: pos.left, width }}
-      className="fixed z-50 bg-white border border-gray-200 rounded-md shadow-lg"
+      className="fixed z-50 bg-white dark:bg-[#131316] border border-gray-200 dark:border-[#33333a] rounded-md shadow-lg dark:shadow-[0_10px_25px_rgba(0,0,0,0.6)] overflow-hidden"
     >
       {children}
     </div>,
@@ -63,7 +63,7 @@ const UserActionsMenu = ({ onView, onEdit, onViewAttendance, onDelete }) => {
       <button
         ref={btnRef}
         onClick={() => setOpen((o) => !o)}
-        className="p-2 rounded-md hover:bg-gray-100"
+        className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-[#1e1e23] text-gray-600 dark:text-zinc-300"
         aria-label="User actions"
       >
         <MoreVertical size={18} />
@@ -75,7 +75,7 @@ const UserActionsMenu = ({ onView, onEdit, onViewAttendance, onDelete }) => {
             setOpen(false);
             onView?.();
           }}
-          className="w-full text-left px-3 py-2 hover:bg-gray-50"
+          className="w-full text-left px-3 py-2 text-gray-700 dark:text-zinc-200 hover:bg-gray-50 dark:hover:bg-[#1e1e23]"
         >
           View User
         </button>
@@ -85,7 +85,7 @@ const UserActionsMenu = ({ onView, onEdit, onViewAttendance, onDelete }) => {
             setOpen(false);
             onEdit?.();
           }}
-          className="w-full text-left px-3 py-2 hover:bg-gray-50"
+          className="w-full text-left px-3 py-2 text-gray-700 dark:text-zinc-200 hover:bg-gray-50 dark:hover:bg-[#1e1e23]"
         >
           Edit User
         </button>
@@ -95,7 +95,7 @@ const UserActionsMenu = ({ onView, onEdit, onViewAttendance, onDelete }) => {
             setOpen(false);
             onViewAttendance?.();
           }}
-          className="w-full text-left px-3 py-2 hover:bg-gray-50"
+          className="w-full text-left px-3 py-2 text-gray-700 dark:text-zinc-200 hover:bg-gray-50 dark:hover:bg-[#1e1e23]"
         >
           View Attendance
         </button>
@@ -105,7 +105,7 @@ const UserActionsMenu = ({ onView, onEdit, onViewAttendance, onDelete }) => {
             setOpen(false);
             onDelete?.();
           }}
-          className="w-full text-left px-3 py-2 text-red-600 hover:bg-red-50"
+          className="w-full text-left px-3 py-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10"
         >
           Delete
         </button>

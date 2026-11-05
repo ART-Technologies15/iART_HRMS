@@ -5,6 +5,7 @@ import { Download, FileText, Loader2 } from "lucide-react";
 
 import { getPhoneBook, assignLetter } from "../../api/authApi";
 import iArtLogo from "../../assets/logoiart.svg";
+import { toast } from "react-toastify";
 
 export const Appointment = () => {
     const letterRef = useRef(null);
@@ -70,7 +71,7 @@ export const Appointment = () => {
         if (!file) return;
 
         if (!file.type.startsWith("image/")) {
-            alert("Please upload an image file (PNG, JPG, etc.) for the signature.");
+            toast.error("Please upload an image file (PNG, JPG, etc.) for the signature.");
             return;
         }
 
@@ -265,7 +266,7 @@ td, th { padding: 5px; }
             URL.revokeObjectURL(url);
         } catch (error) {
             console.error("DOC generation error:", error);
-            alert("Failed to generate DOC file.");
+            toast.error("Failed to generate DOC file.");
         } finally {
             setDocLoading(false);
         }
@@ -469,7 +470,7 @@ td, th { padding: 5px; }
                         response
                     );
 
-                    alert(
+                    toast.error(
                         response?.message ||
                         "PDF downloaded, but the appointment letter could not be assigned."
                     );
@@ -484,7 +485,7 @@ td, th { padding: 5px; }
         } catch (error) {
             console.error("PDF generation error:", error);
 
-            alert(
+            toast.error(
                 error?.message ||
                 "Failed to generate PDF."
             );
@@ -877,6 +878,7 @@ td, th { padding: 5px; }
                 <div className="min-h-0 overflow-y-auto overflow-x-auto">
                     <div
                         ref={letterRef}
+                        data-theme="light"
                         style={{
                             width: "794px",
                             minHeight: "1123px",

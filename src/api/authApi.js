@@ -112,12 +112,29 @@ export const createClientInvoiceNumber = async (data) => {
   return res.data;
 };
 
+// Assign a letter to an employee (Admin/HR)
 export const assignLetter = async (data) => {
   const res = await axiosInstance.post("/auth/assign-letter", data);
   return res.data;
 };
 
-export const getAssignLetter = async (data) => {
-  const res = await axiosInstance.get("/auth/assign-letter", data);
+// Get logged-in employee's active letters
+export const getMyLetters = async () => {
+  const res = await axiosInstance.get("/auth/assign-letter");
+  return res.data;
+};
+
+// Get a specific employee's letters (Admin/HR)
+export const getAssignLetter = async (employeeId) => {
+  const res = await axiosInstance.get(`/auth/assign-letter/${employeeId}`);
+  return res.data;
+};
+
+// Update letter status (Admin/HR)
+export const updateLetterStatus = async (letterId, status) => {
+  const res = await axiosInstance.patch(
+    `/auth/letter/${letterId}/status`,
+    { status }
+  );
   return res.data;
 };

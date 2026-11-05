@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Search,
   SlidersHorizontal,
@@ -8,7 +8,10 @@ import {
   CalendarDays,
   Package,
   Trash2,
-  FileText
+  FileText,
+  MoreVertical,
+  Upload,
+  ExternalLink,
 } from "lucide-react";
 import CustomTable from "../components/CustomTable";
 import UserDetailsModal from "../components/UserDetailsModal";
@@ -22,6 +25,9 @@ import {
   updateUser,
   deleteUser as deleteUserApi,
   toggleUserStatus,
+  getAssignLetter,
+  assignLetter,
+  updateLetterStatus,
 } from "../api/authApi";
 import {
   getEmployeeAssets
@@ -30,6 +36,37 @@ import { toast } from "react-toastify";
 import { useAuth } from "../context/AuthContext";
 import EmployeeAssetsModal from "../components/EmployeeAssetsModal";
 import { getErrorMessage } from "../helper/commonFuction";
+import ActionDropdown from "../reusableComponents/ActionDropdown";
+import Drawer from "../reusableComponents/Drawer";
+
+const LETTER_TYPES = [
+  { value: "appointment", label: "Appointment Letter" },
+  { value: "offer", label: "Offer Letter" },
+  { value: "appraisal", label: "Appraisal Letter" },
+  { value: "experience", label: "Experience Letter" },
+  { value: "relieving", label: "Relieving Letter" },
+];
+
+const extractLetters = (response) => {
+  const candidates = [
+    response?.letters,
+    response?.data?.letters,
+    response?.data?.assignments,
+    response?.data,
+  ];
+  return candidates.find(Array.isArray) || [];
+};
+
+const getLetterFileUrl = (letter) => {
+  const file = letter.fileUrl || letter.file || letter.url || letter.documentUrl || letter.letterUrl;
+  return typeof file === "string" ? file : file?.url || "";
+};
+
+const formatLetterDate = (value) => {
+  if (!value) return "-";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "-" : date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+};
 
 const AdminUsersPage = () => {
   const navigate = useNavigate();
@@ -69,6 +106,17 @@ const AdminUsersPage = () => {
 
   const [employeeAssetsOpen, setEmployeeAssetsOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
+  const [lettersDrawerOpen, setLettersDrawerOpen] = useState(false);
+  const [lettersEmployee, setLettersEmployee] = useState(null);
+  const [lettersEmployeeDetails, setLettersEmployeeDetails] = useState(null);
+  const [employeeLetters, setEmployeeLetters] = useState([]);
+  const [letterCounts, setLetterCounts] = useState({ total: 0, active: 0, revoked: 0 });
+  const [lettersLoading, setLettersLoading] = useState(false);
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const [letterType, setLetterType] = useState("appointment");
+  const [letterFile, setLetterFile] = useState(null);
+  const [uploadingLetter, setUploadingLetter] = useState(false);
+  const [updatingLetterId, setUpdatingLetterId] = useState(null);
 
   const [activeTab, setActiveTab] = useState("all");
 
@@ -212,6 +260,113 @@ const AdminUsersPage = () => {
     }
   };
 
+  const fetchEmployeeLetters = useCallback(async (employeeId) => {
+    if (!employeeId) return;
+    try {
+      setLettersLoading(true);
+      const response = await getAssignLetter(employeeId);
+      if (!response?.success) {
+        toast.error(response?.message || "Unable to load employee letters");
+        setEmployeeLetters([]);
+        setLettersEmployeeDetails(null);
+        setLetterCounts({ total: 0, active: 0, revoked: 0 });
+        return;
+      }
+      const letters = extractLetters(response);
+      const data = response.data || {};
+      setEmployeeLetters(letters);
+      setLettersEmployeeDetails(data.employee || null);
+      setLetterCounts({
+        total: data.totalLetters ?? letters.length,
+        active: data.activeLetters ?? letters.filter((letter) => letter.status === "active").length,
+        revoked: data.revokedLetters ?? letters.filter((letter) => letter.status === "revoked").length,
+      });
+    } catch (error) {
+      toast.error(error?.response?.data?.message || "Unable to load employee letters");
+      setEmployeeLetters([]);
+      setLettersEmployeeDetails(null);
+      setLetterCounts({ total: 0, active: 0, revoked: 0 });
+    } finally {
+      setLettersLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (lettersDrawerOpen && lettersEmployee?._id) {
+      fetchEmployeeLetters(lettersEmployee._id);
+    }
+  }, [lettersDrawerOpen, lettersEmployee?._id, fetchEmployeeLetters]);
+
+  const openLettersDrawer = (employee) => {
+    setLettersEmployee(employee);
+    setLettersEmployeeDetails(null);
+    setEmployeeLetters([]);
+    setLetterCounts({ total: 0, active: 0, revoked: 0 });
+    setLetterType("appointment");
+    setLetterFile(null);
+    setUploadOpen(false);
+    setLettersDrawerOpen(true);
+  };
+
+  const handleUploadLetter = async (event) => {
+    event.preventDefault();
+    if (!lettersEmployee?._id || !letterFile) {
+      toast.error("Choose a PDF file to upload.");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("userId", lettersEmployee._id);
+    formData.append("type", letterType);
+    formData.append("file", letterFile);
+
+    try {
+      setUploadingLetter(true);
+      const response = await assignLetter(formData);
+      if (response?.success) {
+        toast.success("Letter uploaded and assigned");
+        setLetterFile(null);
+        setUploadOpen(false);
+        await fetchEmployeeLetters(lettersEmployee._id);
+      } else {
+        toast.error(response?.message || "Unable to upload letter");
+      }
+    } catch (error) {
+      toast.error(error?.response?.data?.message || "Unable to upload letter");
+    } finally {
+      setUploadingLetter(false);
+    }
+  };
+
+  const handleLetterStatusChange = async (letter, nextStatus) => {
+    const letterId = letter._id || letter.id;
+    if (!letterId) {
+      toast.error("Letter ID is unavailable");
+      return;
+    }
+    try {
+      setUpdatingLetterId(letterId);
+      const response = await updateLetterStatus(letterId, nextStatus);
+      if (response?.success) {
+        toast.success(`Letter ${nextStatus === "active" ? "activated" : "revoked"}`);
+        setEmployeeLetters((prev) => prev.map((item) =>
+          (item._id || item.id) === letterId ? { ...item, status: nextStatus } : item
+        ));
+        setLetterCounts((prev) => ({
+          ...prev,
+          active: Math.max(0, prev.active + (nextStatus === "active" ? 1 : -1)),
+          revoked: Math.max(0, prev.revoked + (nextStatus === "revoked" ? 1 : -1)),
+        }));
+      } else {
+        toast.error(response?.message || "Unable to update letter status");
+      }
+    } catch (error) {
+      toast.error(error?.response?.data?.message || "Unable to update letter status");
+    } finally {
+      setUpdatingLetterId(null);
+    }
+  };
+
   const columns = [
     {
       label: "Name",
@@ -255,104 +410,56 @@ const AdminUsersPage = () => {
       ),
     },
     {
-      label: "Active",
-      accessor: "isActive",
-      render: (val, row) => {
-        const isAdminUser = row.role === "admin";
+  label: "Active",
+  accessor: "isActive",
+  render: (val, row) => {
+    const isAdminUser = row.role === "admin";
+    const isActive = !!row.isActive;
 
-        return (
-          <div onClick={(e) => e.stopPropagation()}>
-            <label
-              className={`relative inline-flex items-center ${isAdminUser ? "cursor-not-allowed opacity-60" : "cursor-pointer"
-                }`}
-            >
-              <input
-                type="checkbox"
-                className="sr-only peer"
-                checked={!!row.isActive}
-                disabled={isAdminUser}
-                onChange={() =>
-                  !isAdminUser &&
-                  handleToggleStatus(row._id, row.isActive)
-                }
-              />
-              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-            </label>
-          </div>
-        );
-      },
-    },
+    return (
+      <div onClick={(e) => e.stopPropagation()}>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={isActive}
+          disabled={isAdminUser}
+          onClick={() => handleToggleStatus(row._id, isActive)}
+          className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors duration-200
+            disabled:cursor-not-allowed disabled:opacity-60
+            ${isActive ? "bg-emerald-600" : "bg-slate-300"}
+            ${isAdminUser ? "cursor-not-allowed" : "cursor-pointer"}
+          `}
+        >
+          <span
+            className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform duration-200
+              ${isActive ? "translate-x-[22px]" : "translate-x-0.5"}
+            `}
+          />
+        </button>
+      </div>
+    );
+  },
+},
     {
       label: "Actions",
       accessor: "actions",
       render: (_, row) => (
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              setAddUserOpen(row);
-            }}
-            title="Edit User"
-            aria-label="Edit User"
-            className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-gray-200 text-gray-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600"
-          >
-            <Pencil size={15} />
-          </button>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate("/user-attendance", { state: { user: row } });
-            }}
-            title="View Attendance"
-            aria-label="View Attendance"
-            className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-gray-200 text-gray-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600"
-          >
-            <CalendarDays size={15} />
-          </button>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              setSelectedEmployee(row);
-              setEmployeeAssetsOpen(true);
-            }}
-            title="View Assets"
-            aria-label="View Assets"
-            className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-gray-200 text-gray-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600"
-          >
-            <Package size={15} />
-          </button>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate("/user-attendance", { state: { user: row } });
-            }}
-            title="Documents"
-            aria-label="Documents"
-            className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-gray-200 text-gray-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600"
-          >
-            <FileText size={15} />
-          </button>
-          {
-            user?.role === "admin" && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setDeleteUser(row);
-                }}
-                title="Delete User"
-                aria-label="Delete User"
-                className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-red-200 text-red-500 transition hover:bg-red-50 hover:text-red-600"
-              >
-                <Trash2 size={15} />
-              </button>
-            )
-          }
-        </div>
+        <ActionDropdown
+          openOn="click"
+          triggerIcon={MoreVertical}
+          triggerClassName="inline-flex h-8 w-8 items-center justify-center rounded-md border border-gray-200 text-gray-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600"
+          actions={[
+            { label: "Edit User", icon: Pencil, onClick: () => setAddUserOpen(row) },
+            { label: "View Attendance", icon: CalendarDays, onClick: () => navigate("/user-attendance", { state: { user: row } }) },
+            { label: "View Assets", icon: Package, onClick: () => { setSelectedEmployee(row); setEmployeeAssetsOpen(true); } },
+            { label: "Documents", icon: FileText, onClick: () => navigate("/user-attendance", { state: { user: row } }) },
+            { label: "View Letters", icon: FileText, onClick: () => openLettersDrawer(row) },
+            ...(user?.role === "admin" ? [
+              { divider: true },
+              { label: "Delete User", icon: Trash2, className: "text-red-600 hover:bg-red-50 cursor-pointer", onClick: () => setDeleteUser(row) },
+            ] : []),
+          ]}
+        />
       ),
     },
   ];
@@ -517,6 +624,131 @@ const AdminUsersPage = () => {
         message={`This action cannot be undone. Are you sure you want to delete ${deleteUser?.name}?`}
         onConfirm={handleDeleteUser}
       />
+      <Drawer
+        isOpen={lettersDrawerOpen}
+        onClose={() => setLettersDrawerOpen(false)}
+        direction="right"
+        size="min(600px, 100vw)"
+        title={`${lettersEmployeeDetails?.name || lettersEmployee?.name || "Employee"} - Letters`}
+        footer={(
+          <div className="flex justify-end">
+            <button type="button" onClick={() => setLettersDrawerOpen(false)} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Close</button>
+          </div>
+        )}
+      >
+        <div className="space-y-5 p-5">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-slate-800">Assigned letters</p>
+              <p className="mt-0.5 text-xs text-slate-500">
+                {lettersEmployeeDetails?.employeeId || lettersEmployee?.employeeId || ""}
+                {(lettersEmployeeDetails?.department || lettersEmployeeDetails?.designation) && " · "}
+                {[lettersEmployeeDetails?.department, lettersEmployeeDetails?.designation].filter(Boolean).join(" · ")}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setUploadOpen((open) => !open)}
+              className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700"
+            >
+              <Upload size={15} />
+              Upload Letter
+            </button>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              { label: "Total", value: letterCounts.total, style: "bg-slate-100 text-slate-700" },
+              { label: "Active", value: letterCounts.active, style: "bg-emerald-50 text-emerald-700" },
+              { label: "Revoked", value: letterCounts.revoked, style: "bg-rose-50 text-rose-700" },
+            ].map((count) => (
+              <div key={count.label} className={`rounded-lg px-3 py-2 ${count.style}`}>
+                <p className="text-[10px] font-semibold uppercase tracking-wide opacity-75">{count.label}</p>
+                <p className="mt-0.5 text-lg font-semibold">{count.value}</p>
+              </div>
+            ))}
+          </div>
+
+          {uploadOpen && (
+            <form onSubmit={handleUploadLetter} className="space-y-3 rounded-xl border border-blue-100 p-4">
+              <label className="block text-sm text-slate-700">
+                <span className="mb-1 block font-medium">Letter type</span>
+                <select value={letterType} onChange={(event) => setLetterType(event.target.value)} className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2">
+                  {LETTER_TYPES.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}
+                </select>
+              </label>
+              <label className="block text-sm text-slate-700">
+                <span className="mb-1 block font-medium">PDF file</span>
+                <input
+                  type="file"
+                  accept="application/pdf,.pdf"
+                  onChange={(event) => setLetterFile(event.target.files?.[0] || null)}
+                  className="block w-full rounded-lg border border-slate-300 bg-white text-sm text-slate-600 file:mr-3 file:border-0 file:bg-slate-100 file:px-3 file:py-2"
+                />
+              </label>
+              {letterFile && <p className="truncate text-xs text-slate-500">{letterFile.name}</p>}
+              <div className="flex justify-end gap-2">
+                <button type="button" onClick={() => { setUploadOpen(false); setLetterFile(null); }} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50">Cancel</button>
+                <button type="submit" disabled={uploadingLetter || !letterFile} className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50">
+                  <Upload size={15} /> {uploadingLetter ? "Uploading..." : "Upload PDF"}
+                </button>
+              </div>
+            </form>
+          )}
+
+          {lettersLoading ? (
+            <div className="space-y-3">
+              {[0, 1, 2].map((index) => <div key={index} className="h-24 animate-pulse rounded-xl bg-slate-100" />)}
+            </div>
+          ) : employeeLetters.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-slate-300 px-5 py-12 text-center text-sm text-slate-500">No letters assigned to this employee.</div>
+          ) : (
+            <div className="space-y-3">
+              {employeeLetters.map((letter, index) => {
+                const letterId = letter._id || letter.id;
+                const status = letter.status || "active";
+                const fileUrl = getLetterFileUrl(letter);
+                const typeLabel = LETTER_TYPES.find((type) => type.value === letter.type)?.label || letter.type || "Letter";
+
+                return (
+                  <article key={letterId || `${letter.type}-${index}`} className="rounded-xl border border-slate-200 bg-white p-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex min-w-0 items-start gap-3">
+                        <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600"><FileText size={17} /></span>
+                        <div className="min-w-0">
+                          <h3 className="truncate text-sm font-semibold text-slate-800">{typeLabel}</h3>
+                          <p className="mt-1 text-xs text-slate-500">Assigned {formatLetterDate(letter.assignedAt || letter.createdAt)}</p>
+                          <p className="mt-1 text-xs text-slate-500">Assigned by: {letter.assignedBy?.name || "-"}</p>
+                          <p className="mt-1 text-xs text-slate-500">Updated by: {letter.updatedBy?.name || "-"}</p>
+                          {letter.fileName && <p className="mt-1 truncate text-xs text-slate-500">{letter.fileName}</p>}
+                          {fileUrl && <a href={fileUrl} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:underline"><ExternalLink size={13} /> Open letter</a>}
+                        </div>
+                      </div>
+                      <div className="flex shrink-0 flex-col items-end gap-2">
+                        <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize ${status === "active" ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>{status}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-slate-600">{updatingLetterId === letterId ? "Saving..." : status === "active" ? "Active" : "Revoked"}</span>
+                          <button
+                            type="button"
+                            role="switch"
+                            aria-checked={status === "active"}
+                            aria-label={`${status === "active" ? "Revoke" : "Activate"} ${typeLabel}`}
+                            disabled={!letterId || updatingLetterId === letterId}
+                            onClick={() => handleLetterStatusChange(letter, status === "active" ? "revoked" : "active")}
+                            className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors disabled:cursor-wait disabled:opacity-60 ${status === "active" ? "bg-emerald-600" : "bg-slate-300"}`}
+                          >
+                            <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${status === "active" ? "translate-x-[22px]" : "translate-x-0.5"}`} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </Drawer>
       <EmployeeAssetsModal
         open={employeeAssetsOpen}
         onClose={() => {

@@ -33,7 +33,7 @@ const Layout = () => {
   }, [sidebarOpen]);
 
   return (
-    <div className="w-full flex h-screen overflow-hidden relative">
+    <div className="relative flex h-screen w-full overflow-hidden bg-slate-50 text-slate-900 transition-colors dark:bg-slate-950 dark:text-slate-100">
       {/* Sidebar */}
       <div ref={sidebarRef}>
         <Sidebar
@@ -52,13 +52,13 @@ const Layout = () => {
       )}
 
       {/* Right side: header + content */}
-      <div className="flex-1 flex flex-col bg-slate-50 relative min-w-0">
+      <div className="relative flex min-w-0 flex-1 flex-col bg-slate-50 dark:bg-slate-950">
         <Header
           user={user}
           sidebarOpen={sidebarOpen}
           setSidebarOpen={setSidebarOpen}
         />
-        <div className="flex-1 overflow-y-auto p-5 bg-[#F3F8FB]">
+        <div className="flex-1 overflow-y-auto bg-[#F3F8FB] p-5 dark:bg-slate-950">
           <Outlet />
         </div>
       </div>

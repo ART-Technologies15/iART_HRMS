@@ -27,6 +27,7 @@ import {
   GraduationCap,
   FileCheck2,
   Calendar,
+  FolderKanban,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
@@ -68,6 +69,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, user }) => {
     people: true,
     mywork: true,
     workplace: true,
+    projects: true,
     communication: true,
     business: true,
     career: true,
@@ -94,7 +96,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, user }) => {
       transition-all duration-200
       ${isActive
       ? "bg-[#4EA3F7] text-white shadow-sm"
-      : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+      : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
     }
     `;
 
@@ -148,7 +150,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, user }) => {
         fixed left-0 top-0 z-50
         flex h-screen w-60 flex-col
         bg-white
-        border-r border-slate-200
+        border-r border-slate-200 dark:bg-slate-900 dark:border-slate-700
         transition-transform duration-300
         ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
         lg:static lg:translate-x-0
@@ -158,7 +160,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, user }) => {
           HEADER
       ====================================================== */}
 
-      <div className="shrink-0 border-b border-slate-100 px-5 py-5">
+      <div className="shrink-0 border-b border-slate-100 px-5 py-5 dark:border-slate-700">
         <div className="flex items-center gap-3">
           <div
             className="
@@ -177,11 +179,11 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, user }) => {
           </div>
 
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-slate-800">
+            <p className="truncate text-sm font-semibold text-slate-800 dark:text-slate-100">
               {user?.name || "User"}
             </p>
 
-            <p className="mt-0.5 text-xs font-medium capitalize text-slate-400">
+            <p className="mt-0.5 text-xs font-medium capitalize text-slate-400 dark:text-slate-400">
               {user?.role || "Employee"}
             </p>
           </div>
@@ -409,7 +411,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, user }) => {
                     </NavLink>
 
                     {/* Letter History */}
-                    <NavLink
+                    {/* <NavLink
                       to="/hr-letters/history"
                       onClick={() => setSidebarOpen(false)}
                       className={linkClasses}
@@ -422,7 +424,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, user }) => {
                           <span>Letter History</span>
                         </>
                       )}
-                    </NavLink>
+                    </NavLink> */}
                   </div>
                 )}
               </div>
@@ -444,6 +446,21 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, user }) => {
 
             {openGroups.mywork && (
               <div>
+                {!isAdmin && (
+                  <NavLink
+                    to="/my-tasks"
+                    onClick={() => setSidebarOpen(false)}
+                    className={linkClasses}
+                  >
+                    {({ isActive }) => (
+                      <>
+                        <ClipboardCheck className={iconClasses({ isActive })} />
+                        <span>My Tasks</span>
+                      </>
+                    )}
+                  </NavLink>
+                )}
+
                 {/* My Assets */}
                 <NavLink
                   to="/my-assets"
@@ -506,6 +523,19 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, user }) => {
 
         {openGroups.workplace && (
           <div>
+            <NavLink
+              to="/projects"
+              onClick={() => setSidebarOpen(false)}
+              className={linkClasses}
+            >
+              {({ isActive }) => (
+                <>
+                  <FolderKanban className={iconClasses({ isActive })} />
+                  <span>Projects</span>
+                </>
+              )}
+            </NavLink>
+
             {/* Phone Book */}
             <NavLink
               to="/phone-book"
