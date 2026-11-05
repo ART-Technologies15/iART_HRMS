@@ -43,15 +43,46 @@ html.dark {
   --table-disabled: #52525b;
 }
 
+/* ---------- Theme switch animation ---------- */
+
+/* View Transitions: we animate the new theme ourselves (circular reveal) */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+::view-transition-old(root) {
+  z-index: 1;
+}
+
+::view-transition-new(root) {
+  z-index: 2;
+}
+
+/* Fallback for browsers without View Transitions: smooth color fade */
+html.theme-fading,
+html.theme-fading *,
+html.theme-fading *::before,
+html.theme-fading *::after {
+  transition:
+    background-color 450ms ease,
+    color 450ms ease,
+    border-color 450ms ease,
+    fill 450ms ease,
+    stroke 450ms ease,
+    box-shadow 450ms ease !important;
+}
+
 html,
 body,
 #root {
   min-height: 100%;
 }
 
-body {
+/* body {
   transition: background-color 180ms ease, color 180ms ease;
-}
+} */
 
 * {
   font-family: "Outfit", sans-serif;
