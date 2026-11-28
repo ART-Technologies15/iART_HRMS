@@ -314,9 +314,9 @@ async function processMonthlyLeaveUpdate(triggerSource = "scheduled") {
 
       const isAbsentLike = (s) =>
         s === "Absent" ||
-        s === "Half" ||
-        s === "Leave" ||
-        s === "HalfLeave";
+        s === "Leave"
+      // s === "Half" ||
+      // s === "HalfLeave";
 
       for (let i = 0; i < keys.length; i++) {
         if (dayStatus.get(keys[i]) !== "Holiday") continue;

@@ -310,14 +310,15 @@ export const updateAttendance = async (req, res) => {
           ? Math.floor((punchOutDate - punchInDate) / 1000)
           : 0;
 
-      record = {
+      attendanceDoc.records.push({
         date: targetDate,
         punchIn: isClearRequest ? null : punchInDate,
         punchOut: isClearRequest ? null : punchOutDate,
         totalHours: isClearRequest ? 0 : totalHours,
-      };
+      });
 
-      attendanceDoc.records.push(record);
+      // get the real subdocument (it now has an _id)
+      record = attendanceDoc.records[attendanceDoc.records.length - 1];
     }
 
     // If clearing record
