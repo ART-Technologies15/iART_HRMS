@@ -11,6 +11,7 @@ import {
 } from "../api/attendaceApi";
 import { toast } from "react-toastify";
 import AcceptRejectRegularizationModal from "../components/AcceptRejectRegularizationModal";
+import moment from "moment";
 
 const STATUS_OPTIONS = ["Pending", "Approved", "Rejected"];
 const REQUEST_TYPE_OPTIONS = [
@@ -128,7 +129,7 @@ const Regularization = () => {
     const editAttendanceValue = editRow
         ? {
             date: editRow.attendanceDate
-                ? new Date(editRow.attendanceDate).toISOString().split("T")[0]
+                ? moment(editRow.attendanceDate).format("YYYY-MM-DD")
                 : "",
             punchIn: editRow.requestedPunchIn,
             punchOut: editRow.requestedPunchOut,
