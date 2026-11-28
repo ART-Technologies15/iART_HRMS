@@ -7,6 +7,7 @@ import {
   UserCircle,
   Cake,
   CalendarDays,
+  Github
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
@@ -124,11 +125,10 @@ const PhoneBookCard = ({ user, onClick }) => {
             {/* Active / Inactive */}
             {user.isActive !== undefined && (
               <span
-                className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${
-                  user.isActive
-                    ? "bg-green-100 text-green-700"
-                    : "bg-gray-100 text-gray-600"
-                }`}
+                className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${user.isActive
+                  ? "bg-green-100 text-green-700"
+                  : "bg-gray-100 text-gray-600"
+                  }`}
               >
                 {user.isActive ? "Active" : "Inactive"}
               </span>
@@ -143,6 +143,27 @@ const PhoneBookCard = ({ user, onClick }) => {
               {user.designation || "-"}
             </span>
           </div>
+
+          {(user.github?.username || user.github?.link) && (
+            <div className="flex items-center justify-center xs:justify-start gap-1 min-w-0">
+              <Github size={14} className="shrink-0 text-gray-600" />
+
+              {user.github?.link ? (
+                <a
+                  href={user.github.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  title={user.github.link}
+                  className="truncate text-blue-600 hover:text-blue-700 hover:underline"
+                >
+                  {user.github?.username ? `@${user.github.username}` : "View GitHub"}
+                </a>
+              ) : (
+                <span className="truncate">@{user.github.username}</span>
+              )}
+            </div>
+          )}
 
           {/* Date of Birth */}
           <div className="text-gray-600 flex items-center justify-center xs:justify-start gap-1">

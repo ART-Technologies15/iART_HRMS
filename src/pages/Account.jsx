@@ -285,7 +285,8 @@ const Account = () => {
   const [formData, setFormData] = useState({
     name: "", email: "", role: "", mobile: "", alternateMobile: "",
     address: "", department: "", designation: "", pan: "", aadhaar: "",
-    accountNumber: "", ifsc: "", bankName: "", dateOfBirth: "", joiningDate: "", employeeId: "",
+    accountNumber: "", ifsc: "", bankName: "", dateOfBirth: "", joiningDate: "", employeeId: "", githubUsername: "",
+    githubLink: "",
   });
 
   const [selectedFiles, setSelectedFiles] = useState({
@@ -336,6 +337,8 @@ const Account = () => {
         ? new Date(user.joiningDate).toISOString().split("T")[0]
         : "",
       employeeId: user.employeeId || "",
+      githubUsername: user.github?.username || "",
+      githubLink: user.github?.link || "",
     });
   }, [user]);
 
@@ -488,6 +491,8 @@ const Account = () => {
         ? new Date(user.joiningDate).toISOString().split("T")[0]
         : "",
       employeeId: user.employeeId || "",
+      githubUsername: user.github?.username || "",
+      githubLink: user.github?.link || "",
     });
 
     setSelectedFiles({
@@ -544,6 +549,21 @@ const Account = () => {
       if (formData.bankName !== initial.bankName) bankChanges.bankName = formData.bankName || "";
       if (Object.keys(bankChanges).length > 0) {
         payload.append("bankDetails", JSON.stringify(bankChanges));
+      }
+
+      // GitHub details — update only changed fields
+      if (formData.githubUsername !== initial.githubUsername) {
+        payload.append(
+          "github.username",
+          formData.githubUsername.trim()
+        );
+      }
+
+      if (formData.githubLink !== initial.githubLink) {
+        payload.append(
+          "github.link",
+          formData.githubLink.trim()
+        );
       }
 
       // Files — already only appended when a new one was actually selected
@@ -794,6 +814,38 @@ const Account = () => {
                   <div className="h-px bg-blue-100 mb-2" />
                   <ViewRow label="Department" value={formData.department} />
                   <ViewRow label="Designation" value={formData.designation} />
+
+                  {/* GitHub Details */}
+                  <p className="text-xs font-semibold text-blue-600 uppercase tracking-widest mb-1 mt-6">
+                    GitHub Details
+                  </p>
+                  <div className="h-px bg-blue-100 mb-2" />
+
+                  <ViewRow
+                    label="GitHub Username"
+                    value={formData.githubUsername}
+                  />
+
+                  <div className="py-3 border-b border-gray-100 last:border-0">
+                    <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">
+                      GitHub Profile
+                    </p>
+
+                    {formData.githubLink ? (
+                      <a
+                        href={formData.githubLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 text-sm font-medium break-all"
+                      >
+                        <ExternalLink size={15} />
+                        Visit GitHub Profile
+                      </a>
+                    ) : (
+                      <p className="text-sm text-gray-500">—</p>
+                    )}
+                  </div>
+
                 </div>
 
                 {/* Right col */}
@@ -870,6 +922,26 @@ const Account = () => {
                 <FileUpload label="Bank Passbook" name="passbookFile" onChange={onFileChange}
                   existingUrl={user?.bankDetails?.passbookFile} existingLabel="View current passbook"
                   selectedFile={selectedFiles.passbookFile} />
+
+                {/* GitHub Details */}
+                <SectionHeading title="GitHub Details" />
+
+                <Input
+                  label="GitHub Username"
+                  name="githubUsername"
+                  value={formData.githubUsername}
+                  onChange={onProfileChange}
+                  placeholder="e.g. iArt123"
+                />
+
+                <Input
+                  label="GitHub Profile Link"
+                  name="githubLink"
+                  type="url"
+                  value={formData.githubLink}
+                  onChange={onProfileChange}
+                  placeholder="https://github.com/username"
+                />
 
                 <div className="col-span-full flex justify-end gap-3 pt-4 border-t border-gray-100 mt-2">
                   <button type="button" onClick={() => { resetForm(); setEditMode(false); }}

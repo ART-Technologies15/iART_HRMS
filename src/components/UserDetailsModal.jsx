@@ -1,5 +1,5 @@
 import React from "react";
-import { X, Mail, Phone, MapPin, Wallet, ExternalLink, CalendarDays } from "lucide-react";
+import { X, Mail, Phone, MapPin, Wallet, ExternalLink, Github } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
 const Row = ({ label, value }) => (
@@ -174,6 +174,24 @@ const UserDetailsModal = ({ open, onClose, user }) => {
                   : ""}
               </span>
             </div>
+            {(user.github?.username || user.github?.link) && (
+              <div className="flex items-center gap-2.5 text-sm text-slate-600">
+                <Github size={15} className="shrink-0 text-slate-400" />
+                {user.github?.link ? (
+                  <a
+                    href={user.github.link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 truncate font-medium text-indigo-600 hover:text-indigo-700"
+                  >
+                    {user.github?.username ? `@${user.github.username}` : "View GitHub"}
+                    <ExternalLink size={11} className="shrink-0" />
+                  </a>
+                ) : (
+                  <span className="truncate">@{user.github.username}</span>
+                )}
+              </div>
+            )}
             {(isAdmin || isHr) && (
               <div className="flex items-center gap-2.5 text-sm text-slate-600">
                 <MapPin size={15} className="shrink-0 text-slate-400" />
