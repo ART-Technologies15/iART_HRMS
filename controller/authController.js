@@ -499,8 +499,6 @@ export const getAllUsers = async (req, res) => {
 
 export const getAllUsersPhoneBook = async (req, res) => {
   try {
-    const user = req.user
-
     const {
       page = 1,
       limit = 10,
@@ -510,14 +508,20 @@ export const getAllUsersPhoneBook = async (req, res) => {
       designation = "",
     } = req.query;
 
+    const isAdmin = req.user.role === "admin";
+
     // Build search query
     const query = {
       _id: { $ne: req.user._id },
       isActive: true,
     };
 
-    if (search) {
-      const regex = new RegExp(search, "i");
+    if (search.trim()) {
+      const regex = new RegExp(
+        search.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
+        "i"
+      );
+
       query.$or = [
         { name: regex },
         { email: regex },
@@ -532,44 +536,67 @@ export const getAllUsersPhoneBook = async (req, res) => {
     if (department) query.department = department;
     if (designation) query.designation = designation;
 
-    const skip = (Number(page) - 1) * Number(limit);
+    const pageNumber = Math.max(1, Number(page) || 1);
+    const pageLimit = Math.min(100, Math.max(1, Number(limit) || 10));
 
-    // Dynamic field selection based on role
-    const selectFields =
-      req.user.role === "admin"
-        ? "-passwordHash" // Admin sees everything except password
-        : "-passwordHash -address -alternateMobile -pan -aadhaar -bankDetails"; // Non-admin sees NONE of these
+    const skip = (pageNumber - 1) * pageLimit;
+
+    const isAdminOrHR = ["admin", "hr"].includes(
+      req.user.role?.toLowerCase()
+    );
+
+    const selectFields = isAdminOrHR
+      ? "-passwordHash"
+      : [
+        "_id",
+        "employeeId",
+        "role",
+        "profilePhoto",
+        "name",
+        "isActive",
+        "designation",
+        "dateOfBirth",
+        "mobile",
+        "email",
+        "department",
+        "joiningDate",
+        "github",
+      ].join(" ");
+
+    // Additional fields visible only to admin
+    // if (isAdmin) {
+    //   selectFields.push(
+    //     "alternateMobile",
+    //     "address"
+    //   );
+    // }
 
     const [users, total] = await Promise.all([
       User.find(query)
         .select(selectFields)
         .sort({ createdAt: -1 })
         .skip(skip)
-        .limit(Number(limit))
-        .lean(), // Important: .lean() returns plain JS objects → faster + safer
+        .limit(pageLimit)
+        .lean(),
 
       User.countDocuments(query),
     ]);
 
-    // Convert _id to string for consistency (optional but clean)
-    const filteredUsers = users.map((user) => ({
-      ...user,
-      _id: user._id.toString(),
-    }));
-
     res.status(200).json({
       success: true,
       message: "Users fetched successfully",
-      users: filteredUsers,
+      users,
       pagination: {
         total,
-        page: Number(page),
-        limit: Number(limit),
-        totalPages: Math.ceil(total / Number(limit)),
+        page: pageNumber,
+        limit: pageLimit,
+        totalPages: Math.ceil(total / pageLimit),
       },
     });
+
   } catch (err) {
     console.error("Error fetching users:", err);
+
     res.status(500).json({
       success: false,
       message: "Server error while fetching users",

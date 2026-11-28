@@ -68,6 +68,19 @@ const userSchema = new mongoose.Schema(
 
     designation: String,
 
+    github: {
+      username: {
+        type: String,
+        trim: true,
+        default: null,
+      },
+      link: {
+        type: String,
+        trim: true,
+        default: null,
+      },
+    },
+
     leaveInfo: {
       balance: { type: Number, default: 0 },
       extraLOP: { type: Number, default: 0 },

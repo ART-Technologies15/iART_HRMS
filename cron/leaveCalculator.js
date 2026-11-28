@@ -248,6 +248,9 @@ async function processMonthlyLeaveUpdate(triggerSource = "scheduled") {
 
       /* ---------- BUILD DAILY STATUS (NO SKIPPING) ---------- */
       const dayStatus = new Map(); // YYYY-MM-DD -> status
+      const nonWorking = new Set(
+        (calendar?.nonWorkingDays || []).map((d) => Number(d.day))
+      );
 
       // for (const d of daysOfMonth) {
       for (const d of userDays) {
@@ -257,7 +260,9 @@ async function processMonthlyLeaveUpdate(triggerSource = "scheduled") {
         const weekday = m.day();
         const isWeekend = weekday === 0 || weekday === 6;
 
-        if (isWeekend || nonWorking.has(dayNum)) {
+
+        // in the loop:
+        if (nonWorking.has(dayNum)) {
           dayStatus.set(dateKey, "Holiday");
           continue;
         }
